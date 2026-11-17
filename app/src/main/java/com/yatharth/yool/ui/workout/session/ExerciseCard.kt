@@ -10,13 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,7 +32,10 @@ import com.yatharth.yool.data.model.SetType
 import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.ShadowCard
+import com.yatharth.yool.ui.components.TxActionSheet
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxIconButton
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Amber
 import com.yatharth.yool.ui.theme.Coral
@@ -83,25 +82,7 @@ internal fun ExerciseCard(
                 color = ex.entry.supersetGroup?.let { supersetStyle(it).first } ?: Ink,
                 modifier = Modifier.weight(1f).clickable { onOpenExercise(ex.exercise.id) },
             )
-            Box {
-                Icon(Icons.Default.MoreVert, "Exercise menu", tint = Ink, modifier = Modifier.clickable { menu = true }.padding(4.dp))
-                DropdownMenu(menu, { menu = false }) {
-                    @Composable fun item(text: String, enabled: Boolean = true, color: Color = Ink, action: () -> Unit) =
-                        DropdownMenuItem(text = { Text(text, color = color) }, enabled = enabled, onClick = { menu = false; action() })
-                    item(if (showNote) "Hide note" else "Add note") { showNote = !showNote }
-                    item("Replace exercise") { replacing = true }
-                    item("Add warm-up sets") { vm.addWarmups(ex) }
-                    item("Plate calculator") { plates = true }
-                    item("Move up", enabled = index > 0) { vm.moveExercise(ex.entry.id, index - 1) }
-                    item("Move down", enabled = index < count - 1) { vm.moveExercise(ex.entry.id, index + 1) }
-                    if (ex.entry.supersetGroup == null) item("Superset with next", enabled = hasNext) { vm.supersetWithNext(ex) }
-                    else {
-                        if (hasNext) item("Superset with next") { vm.supersetWithNext(ex) }
-                        item("Remove from superset") { vm.removeFromSuperset(ex.entry.id) }
-                    }
-                    item("Remove exercise", color = Coral) { vm.removeExercise(ex.entry.id) }
-                }
-            }
+            TxIconButton(Icons.Default.MoreVert, "Exercise menu", { menu = true }, size = 32.dp)
         }
 
         ex.exercise.note?.let {
@@ -130,6 +111,20 @@ internal fun ExerciseCard(
         TxButton("+ Add set", onClick = { vm.addSet(ex.entry.id) }, modifier = Modifier.fillMaxWidth())
     }
 
+    if (menu) {
+        val actions = buildList<Pair<String, () -> Unit>> {
+            add((if (showNote) "Hide note" else "Add note") to { menu = false; showNote = !showNote })
+            add("Replace exercise" to { menu = false; replacing = true })
+            add("Add warm-up sets" to { menu = false; vm.addWarmups(ex) })
+            add("Plate calculator" to { menu = false; plates = true })
+            if (index > 0) add("Move up" to { menu = false; vm.moveExercise(ex.entry.id, index - 1) })
+            if (index < count - 1) add("Move down" to { menu = false; vm.moveExercise(ex.entry.id, index + 1) })
+            if (hasNext) add("Superset with next" to { menu = false; vm.supersetWithNext(ex) })
+            if (ex.entry.supersetGroup != null) add("Remove from superset" to { menu = false; vm.removeFromSuperset(ex.entry.id) })
+            add("Remove exercise" to { menu = false; vm.removeExercise(ex.entry.id) })
+        }
+        TxActionSheet(ex.exercise.name, { menu = false }, actions, destructive = setOf("Remove exercise"))
+    }
     if (replacing) {
         ExercisePickerDialog(
             title = "Replace ${ex.exercise.name}",
@@ -160,28 +155,22 @@ internal fun WorkoutNoteField(initial: String, label: String, onSave: (String) -
 internal fun PlateDialog(initialKg: Double?, settings: WorkoutSettings, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf(initialKg?.let { WorkoutMath.kg(it) } ?: "") }
     val target = Fmt.parseDouble(text)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Plate calculator") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                TxTextField(text, { text = it }, "Target weight", unit = "kg", numeric = true)
-                Text("Bar ${WorkoutMath.kg(settings.barKg)} kg", style = MaterialTheme.typography.labelMedium)
-                if (target != null) {
-                    if (target <= settings.barKg) {
-                        Text("Just the bar.", style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        val (plates, left) = WorkoutMath.platesPerSide(target, settings.barKg, settings.plates)
-                        Text("Per side", style = MaterialTheme.typography.labelMedium)
-                        Text(
-                            plates.groupingBy { it }.eachCount().entries.joinToString("  ") { (p, n) -> "${WorkoutMath.kg(p)} × $n" }.ifEmpty { "—" },
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        if (left > 0) Text("${WorkoutMath.kg(left)} kg per side can't be matched with your plates.", style = MaterialTheme.typography.bodySmall, color = Coral)
-                    }
-                }
+    TxDialog("Plate calculator", onDismiss) {
+        TxTextField(text, { text = it }, "Target weight", unit = "kg", numeric = true)
+        Text("Bar ${WorkoutMath.kg(settings.barKg)} kg", style = MaterialTheme.typography.labelMedium)
+        if (target != null) {
+            if (target <= settings.barKg) {
+                Text("Just the bar.", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                val (plates, left) = WorkoutMath.platesPerSide(target, settings.barKg, settings.plates)
+                Text("Per side", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    plates.groupingBy { it }.eachCount().entries.joinToString("  ") { (p, n) -> "${WorkoutMath.kg(p)} × $n" }.ifEmpty { "—" },
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                if (left > 0) Text("${WorkoutMath.kg(left)} kg per side can't be matched with your plates.", style = MaterialTheme.typography.bodySmall, color = Coral)
             }
-        },
-        confirmButton = { TextButton(onDismiss) { Text("Close", color = Ink) } },
-    )
+        }
+        TxButton("Close", onDismiss, Modifier.fillMaxWidth())
+    }
 }
