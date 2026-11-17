@@ -1,8 +1,8 @@
 package com.yatharth.yool.ui.graphs
 
+import com.yatharth.yool.ui.components.txDatePickerColors
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,25 +65,7 @@ fun RangeSelector(
             initialSelectedStartDateMillis = selection.customFrom?.toUtcMillis(),
             initialSelectedEndDateMillis = selection.customTo?.toUtcMillis(),
         )
-        val colors = DatePickerDefaults.colors(
-            containerColor = ItemsBg,
-            titleContentColor = Ink,
-            headlineContentColor = Ink,
-            weekdayContentColor = Ink.copy(alpha = 0.7f),
-            subheadContentColor = Ink,
-            navigationContentColor = Ink,
-            yearContentColor = Ink,
-            currentYearContentColor = Ink,
-            selectedYearContainerColor = Coral,
-            selectedYearContentColor = ItemsBg,
-            dayContentColor = Ink,
-            selectedDayContainerColor = Coral,
-            selectedDayContentColor = ItemsBg,
-            todayContentColor = Ink,
-            todayDateBorderColor = Ink,
-            dayInSelectionRangeContainerColor = Coral.copy(alpha = 0.25f),
-            dayInSelectionRangeContentColor = Ink,
-        )
+        val colors = txDatePickerColors()
         DatePickerDialog(
             onDismissRequest = { picking = false },
             confirmButton = {

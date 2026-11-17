@@ -1,5 +1,7 @@
 package com.yatharth.yool.ui.workout
 
+import com.yatharth.yool.ui.components.txTimePickerColors
+import com.yatharth.yool.ui.components.txDatePickerColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,8 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.MoreVert
@@ -306,27 +306,11 @@ private fun EditTimesDialog(w: WorkoutFull, onDismiss: () -> Unit, onSave: (star
                     }, fill = false)
                 },
                 dismissButton = { TxButton("Cancel", { picking = null }, fill = false) },
-                colors = DatePickerDefaults.colors(containerColor = ItemsBg),
+                colors = txDatePickerColors(),
             ) {
                 DatePicker(
                     state,
-                    colors = DatePickerDefaults.colors(
-                        containerColor = ItemsBg,
-                        titleContentColor = Ink,
-                        headlineContentColor = Ink,
-                        weekdayContentColor = Ink,
-                        subheadContentColor = Ink,
-                        navigationContentColor = Ink,
-                        yearContentColor = Ink,
-                        currentYearContentColor = Ink,
-                        selectedYearContainerColor = Coral,
-                        selectedYearContentColor = ItemsBg,
-                        dayContentColor = Ink,
-                        selectedDayContainerColor = Coral,
-                        selectedDayContentColor = ItemsBg,
-                        todayContentColor = Ink,
-                        todayDateBorderColor = Ink,
-                    ),
+                    colors = txDatePickerColors(),
                 )
             }
         }
@@ -335,21 +319,7 @@ private fun EditTimesDialog(w: WorkoutFull, onDismiss: () -> Unit, onSave: (star
             TxDialog("Start time", { picking = null }) {
                 TimePicker(
                     state,
-                    colors = TimePickerDefaults.colors(
-                        clockDialColor = SecondaryBg,
-                        clockDialSelectedContentColor = ItemsBg,
-                        clockDialUnselectedContentColor = Ink,
-                        selectorColor = Coral,
-                        containerColor = ItemsBg,
-                        periodSelectorBorderColor = Ink,
-                        periodSelectorSelectedContainerColor = Coral.copy(alpha = 0.2f),
-                        periodSelectorSelectedContentColor = Ink,
-                        periodSelectorUnselectedContentColor = Ink,
-                        timeSelectorSelectedContainerColor = Coral.copy(alpha = 0.2f),
-                        timeSelectorSelectedContentColor = Ink,
-                        timeSelectorUnselectedContainerColor = SecondaryBg,
-                        timeSelectorUnselectedContentColor = Ink,
-                    ),
+                    colors = txTimePickerColors(),
                 )
                 TxDialogButtons("OK", { time = LocalTime.of(state.hour, state.minute); picking = null }, { picking = null })
             }

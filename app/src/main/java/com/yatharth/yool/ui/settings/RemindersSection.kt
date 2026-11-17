@@ -1,5 +1,6 @@
 package com.yatharth.yool.ui.settings
 
+import com.yatharth.yool.ui.components.txTimePickerColors
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -9,7 +10,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -148,21 +148,3 @@ fun RemindersSection() {
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-private fun txTimePickerColors() = TimePickerDefaults.colors(
-    clockDialColor = SecondaryBg,
-    clockDialSelectedContentColor = ItemsBg,
-    clockDialUnselectedContentColor = Ink,
-    selectorColor = Coral,
-    containerColor = ItemsBg,
-    periodSelectorBorderColor = Ink,
-    periodSelectorSelectedContainerColor = Coral,
-    periodSelectorUnselectedContainerColor = ItemsBg,
-    periodSelectorSelectedContentColor = ItemsBg,
-    periodSelectorUnselectedContentColor = Ink,
-    timeSelectorSelectedContainerColor = Coral,
-    timeSelectorUnselectedContainerColor = SecondaryBg,
-    timeSelectorSelectedContentColor = ItemsBg,
-    timeSelectorUnselectedContentColor = Ink,
-)

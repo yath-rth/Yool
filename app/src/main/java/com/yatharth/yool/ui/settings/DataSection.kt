@@ -1,5 +1,6 @@
 package com.yatharth.yool.ui.settings
 
+import com.yatharth.yool.ui.components.txDatePickerColors
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -20,7 +21,6 @@ import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -237,25 +237,7 @@ fun DataSection() {
 
     if (showPicker) {
         val state = rememberDateRangePickerState()
-        val pickerColors = DatePickerDefaults.colors(
-            containerColor = ItemsBg,
-            titleContentColor = Ink,
-            headlineContentColor = Ink,
-            weekdayContentColor = Ink.copy(alpha = 0.7f),
-            subheadContentColor = Ink,
-            navigationContentColor = Ink,
-            yearContentColor = Ink,
-            currentYearContentColor = Ink,
-            selectedYearContainerColor = Coral,
-            selectedYearContentColor = ItemsBg,
-            dayContentColor = Ink,
-            selectedDayContainerColor = Coral,
-            selectedDayContentColor = ItemsBg,
-            todayContentColor = Ink,
-            todayDateBorderColor = Ink,
-            dayInSelectionRangeContainerColor = Coral.copy(alpha = 0.25f),
-            dayInSelectionRangeContentColor = Ink,
-        )
+        val pickerColors = txDatePickerColors()
         DatePickerDialog(
             onDismissRequest = { showPicker = false; if (custom == null) range = ExportRange.WEEK },
             confirmButton = {
