@@ -152,7 +152,7 @@ private fun GroupRow(g: GroupAvg, max: Double, color: Color, fmt: (Double) -> St
     HBarRow(
         label = g.label,
         fraction = if (ok) (g.avg!! / max).toFloat() else 0f,
-        valueText = if (ok) "${fmt(g.avg!!)} n${g.n}" else "n${g.n}",
+        valueText = if (ok) "${fmt(g.avg!!)} (n=${g.n})" else "n=${g.n}",
         color = color,
         labelWidth = 96.dp,
         valueWidth = 78.dp,
@@ -248,7 +248,7 @@ private fun AdherenceCard(rows: List<Adherence>) {
             HBarRow(
                 r.label,
                 if (ok) (r.percent!! / 100.0).toFloat() else 0f,
-                if (ok) "${r.percent!!.roundToInt()}% n${r.n}" else "n${r.n}",
+                if (ok) "${r.percent!!.roundToInt()}% (n=${r.n})" else "n=${r.n}",
                 if (ok && r.percent!! >= 70.0) Green else if (ok) Coral else Ink,
                 labelWidth = 96.dp, valueWidth = 78.dp,
             )
