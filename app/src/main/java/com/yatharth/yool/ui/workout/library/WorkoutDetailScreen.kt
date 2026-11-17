@@ -62,7 +62,7 @@ fun WorkoutDetailScreen(
 
     val workout = w
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        LibBackTitle(workout?.workout?.name ?: "Workout", onBack, subtitle = workout?.let { "${Fmt.day(it.workout.date)} · ${workoutTime(it)}" })
+        LibBackTitle(workout?.workout?.name ?: "Workout", onBack, subtitle = workout?.let { "${Fmt.date(it.workout.date)} · ${workoutTime(it)}" })
         if (workout == null) return@Column
         val prs = summary?.prs.orEmpty().associate { (it.first to it.second) to it.third }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {

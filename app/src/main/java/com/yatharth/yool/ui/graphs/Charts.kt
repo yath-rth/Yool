@@ -70,7 +70,7 @@ data class LineSeries(
     val dotRadiusDp: Float = 3f,
 )
 
-private val axisFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+private val axisFmt = DateTimeFormatter.ofPattern("MMM dd")
 private val axisFmtLong = DateTimeFormatter.ofPattern("MMM yy", Locale.getDefault())
 
 private fun niceStep(raw: Double): Double {

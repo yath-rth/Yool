@@ -137,7 +137,7 @@ fun FoodDiaryScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
-            ScreenTitle("Food", Modifier.weight(1f), subtitle = Fmt.day(date))
+            ScreenTitle("Food", Modifier.weight(1f), subtitle = Fmt.date(date))
             NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "Previous day") { onNavigateDay(date.minusDays(1)) }
             Spacer(Modifier.size(8.dp))
             if (date.isBefore(LocalDate.now())) NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowRight, "Next day") { onNavigateDay(date.plusDays(1)) }
@@ -175,10 +175,10 @@ fun FoodDiaryScreen(
             } else {
                 Column(Modifier.height(280.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (d in state.loggedDates.take(30)) {
-                        TxButton(Fmt.day(d), modifier = Modifier.fillMaxWidth(), onClick = {
+                        TxButton(Fmt.date(d), modifier = Modifier.fillMaxWidth(), onClick = {
                             copyInto = null
                             vm.copyMeal(d, meal) { n ->
-                                val msg = if (n == 0) "Nothing logged for ${meal.label} on ${Fmt.day(d)}" else "Copied $n ${if (n == 1) "item" else "items"}"
+                                val msg = if (n == 0) "Nothing logged for ${meal.label} on ${Fmt.date(d)}" else "Copied $n ${if (n == 1) "item" else "items"}"
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             }
                         })

@@ -124,7 +124,7 @@ fun FoodSearchScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
-            ScreenTitle("Add food", Modifier.weight(1f), subtitle = "${meal.label} · ${com.yatharth.yool.ui.Fmt.day(date)}")
+            ScreenTitle("Add food", Modifier.weight(1f), subtitle = "${meal.label} · ${com.yatharth.yool.ui.Fmt.date(date)}")
         }
         TxTextField(query, { query = it; vm.setQuery(it) }, "Search foods", Modifier.fillMaxWidth(), placeholder = "e.g. oats")
         TxButton("+ New food", onClick = onNewFood, bg = Coral, textColor = ItemsBg, modifier = Modifier.fillMaxWidth())

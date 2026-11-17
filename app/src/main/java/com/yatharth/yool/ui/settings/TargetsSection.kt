@@ -78,7 +78,7 @@ fun TargetsSection() {
                 }
                 val goalDate = current?.targetDate
                 if (metric == TargetMetric.WEIGHT_GOAL && current != null && goalDate != null) {
-                    Text("By ${Fmt.day(goalDate)}", style = MaterialTheme.typography.bodySmall)
+                    Text("By ${Fmt.date(goalDate)}", style = MaterialTheme.typography.bodySmall)
                     val latest = latestWeight
                     val rate = requiredWeeklyRateKg(latest, current.value, goalDate, today)
                     if (rate != null && latest != null) {
@@ -109,11 +109,11 @@ fun TargetsSection() {
                     entries.asReversed().forEach { e ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "${fmtValue(metric, e.value)} ${metric.unit}" + (e.targetDate?.let { " · by ${Fmt.day(it)}" } ?: ""),
+                                "${fmtValue(metric, e.value)} ${metric.unit}" + (e.targetDate?.let { " · by ${Fmt.date(it)}" } ?: ""),
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                             )
-                            Text("from ${Fmt.day(e.effectiveFrom)}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(end = 8.dp))
+                            Text("from ${Fmt.date(e.effectiveFrom)}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(end = 8.dp))
                             TxChip("Delete", selected = false, onClick = { scope.launch { repo.deleteTarget(e.id) } })
                         }
                     }
@@ -141,12 +141,12 @@ private fun TargetEditor(
         TxTextField(text, { text = it }, label = metric.label, unit = metric.unit, numeric = true)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("EFFECTIVE FROM", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-            TxChip(Fmt.day(from), selected = true, onClick = { picking = "from" })
+            TxChip(Fmt.date(from), selected = true, onClick = { picking = "from" })
         }
         if (metric == TargetMetric.WEIGHT_GOAL) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("TARGET DATE", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                TxChip(targetDate?.let { Fmt.day(it) } ?: "None", selected = targetDate != null, onClick = { picking = "target" })
+                TxChip(targetDate?.let { Fmt.date(it) } ?: "None", selected = targetDate != null, onClick = { picking = "target" })
                 if (targetDate != null) TxChip("Clear", selected = false, onClick = { targetDate = null })
             }
         }

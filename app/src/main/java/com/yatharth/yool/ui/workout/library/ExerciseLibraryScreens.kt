@@ -88,7 +88,7 @@ fun ExerciseLibraryScreen(contentPadding: PaddingValues, onBack: () -> Unit, onO
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LibBackTitle("Exercises", onBack, subtitle = rows?.let { "${it.size} shown" }) {
-            TxButton("+ New", onNewExercise, Modifier.padding(start = 8.dp))
+            TxButton("+ New", onNewExercise, Modifier.padding(start = 8.dp), fill = false)
         }
         TxTextField(query, { vm.query.value = it }, "Search", Modifier.fillMaxWidth(), placeholder = "Exercise name")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

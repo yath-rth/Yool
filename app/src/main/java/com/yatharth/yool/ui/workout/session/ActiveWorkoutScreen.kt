@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,11 +41,13 @@ import com.yatharth.yool.appContainer
 import com.yatharth.yool.data.db.WorkoutFull
 import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.domain.WorkoutSummary
+import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.EmptyState
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxChip
 import com.yatharth.yool.ui.components.TxProgress
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
@@ -57,9 +65,8 @@ import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
-private val TimeFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+import java.time.LocalTime
+import java.time.ZoneOffset
 
 /** Wall-clock millis that refresh every [intervalMs]; keeps ticking out of the big composables. */
 @Composable
@@ -206,14 +213,14 @@ private fun Header(vm: ActiveWorkoutViewModel, w: WorkoutFull, editing: Boolean,
     ShadowCard {
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TxTextField(name, { name = it }, "Workout", modifier = Modifier.weight(1f), maxLength = 60)
-            TxButton(if (editing) "Save" else "Finish", onClick = onFinish, bg = Green, textColor = androidx.compose.ui.graphics.Color.White)
+            TxButton(if (editing) "Save" else "Finish", onClick = onFinish, bg = Green, textColor = androidx.compose.ui.graphics.Color.White, fill = false)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (editing) {
                 val end = w.workout.endedAt
                 val ms = (end ?: System.currentTimeMillis()) - w.workout.startedAt
                 StatValue("Duration", WorkoutMath.formatDuration(ms), Modifier.weight(1f))
-                TxButton("Edit time", onClick = onEditTimes)
+                TxButton("Edit time", onClick = onEditTimes, fill = false)
             } else {
                 val now by rememberNow()
                 StatValue("Elapsed", SessionMath.elapsedClock(now - w.workout.startedAt), Modifier.weight(1f), big = true)
@@ -232,9 +239,9 @@ private fun RestBar(label: String, remaining: (Long) -> Int, progress: (Long) ->
                 Text("REST · $label".uppercase(), style = MaterialTheme.typography.labelSmall, maxLines = 1)
                 Text(WorkoutMath.formatClock(remaining(now)), style = MaterialTheme.typography.titleMedium)
             }
-            TxButton("−15", { RestTimer.adjust(ctx, -15) })
-            TxButton("+15", { RestTimer.adjust(ctx, 15) })
-            TxButton("Skip", { RestTimer.stop(ctx) }, bg = Coral, textColor = androidx.compose.ui.graphics.Color.White)
+            TxButton("−15", { RestTimer.adjust(ctx, -15) }, fill = false)
+            TxButton("+15", { RestTimer.adjust(ctx, 15) }, fill = false)
+            TxButton("Skip", { RestTimer.stop(ctx) }, bg = Coral, textColor = androidx.compose.ui.graphics.Color.White, fill = false)
         }
         TxProgress(progress(now))
     }
@@ -257,27 +264,64 @@ private fun SummaryBody(s: WorkoutSummary) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditTimesDialog(w: WorkoutFull, onDismiss: () -> Unit, onSave: (startedAt: Long, endedAt: Long) -> Unit) {
     val zone = ZoneId.systemDefault()
-    var start by remember { mutableStateOf(LocalDateTime.ofInstant(Instant.ofEpochMilli(w.workout.startedAt), zone).format(TimeFmt)) }
+    val initial = LocalDateTime.ofInstant(Instant.ofEpochMilli(w.workout.startedAt), zone)
+    var day by remember { mutableStateOf(initial.toLocalDate()) }
+    var time by remember { mutableStateOf(initial.toLocalTime().withSecond(0).withNano(0)) }
     var minutes by remember { mutableStateOf((((w.workout.endedAt ?: System.currentTimeMillis()) - w.workout.startedAt) / 60_000).toString()) }
-    val startMs = runCatching { LocalDateTime.parse(start.trim(), TimeFmt).atZone(zone).toInstant().toEpochMilli() }.getOrNull()
+    var picking by remember { mutableStateOf<String?>(null) }
+    val startMs = day.atTime(time).atZone(zone).toInstant().toEpochMilli()
     val mins = minutes.trim().toLongOrNull()?.takeIf { it > 0 }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit time") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                TxTextField(start, { start = it }, "Start (yyyy-MM-dd HH:mm)")
+                SectionLabel("Started")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TxChip(Fmt.date(day), selected = true, onClick = { picking = "date" })
+                    TxChip(Fmt.time(time), selected = true, onClick = { picking = "time" })
+                }
                 TxTextField(minutes, { minutes = it }, "Duration", unit = "min", numeric = true)
             }
         },
         confirmButton = {
-            TextButton({ if (startMs != null && mins != null) onSave(startMs, startMs + mins * 60_000) }, enabled = startMs != null && mins != null) {
+            TextButton({ if (mins != null) onSave(startMs, startMs + mins * 60_000) }, enabled = mins != null) {
                 Text("Save", color = Ink)
             }
         },
         dismissButton = { TextButton(onDismiss) { Text("Cancel", color = Ink) } },
     )
+    when (picking) {
+        "date" -> {
+            val state = rememberDatePickerState(initialSelectedDateMillis = day.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
+            DatePickerDialog(
+                onDismissRequest = { picking = null },
+                confirmButton = {
+                    TextButton(onClick = {
+                        state.selectedDateMillis?.let { day = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+                        picking = null
+                    }) { Text("OK", color = Ink) }
+                },
+                dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel", color = Ink) } },
+            ) { DatePicker(state) }
+        }
+        "time" -> {
+            val state = rememberTimePickerState(initialHour = time.hour, initialMinute = time.minute, is24Hour = false)
+            AlertDialog(
+                onDismissRequest = { picking = null },
+                text = { TimePicker(state) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        time = LocalTime.of(state.hour, state.minute)
+                        picking = null
+                    }) { Text("OK", color = Ink) }
+                },
+                dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel", color = Ink) } },
+            )
+        }
+    }
 }

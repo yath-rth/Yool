@@ -93,19 +93,6 @@ fun exerciseLines(w: WorkoutFull): List<String> = w.ordered.mapNotNull { ex ->
 
 fun exerciseLines(t: TemplateFull): List<String> = t.ordered.map { "${it.sets.size} × ${it.exercise.name}" }
 
-/** "today", "yesterday", "5 days ago", "3 weeks ago", "4 months ago". */
-fun relativeDay(from: LocalDate, today: LocalDate): String {
-    val d = java.time.temporal.ChronoUnit.DAYS.between(from, today).toInt()
-    return when {
-        d <= 0 -> "today"
-        d == 1 -> "yesterday"
-        d < 14 -> "$d days ago"
-        d < 60 -> "${d / 7} weeks ago"
-        d < 730 -> "${d / 30} months ago"
-        else -> "${d / 365} years ago"
-    }
-}
-
 // ── PR counting across a whole history ───────────────────────────────────────
 
 /**

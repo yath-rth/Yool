@@ -402,7 +402,7 @@ private fun LiftSection(d: GraphData, exercises: List<String>, selected: String?
         Text("SESSIONS", style = MaterialTheme.typography.labelMedium)
         sets.asReversed().take(15).forEach { s ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(Fmt.day(s.date), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                Text(Fmt.date(s.date), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                 if (s == pr) {
                     Text(
                         "PR", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold,

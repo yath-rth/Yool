@@ -52,7 +52,7 @@ fun RangeSelector(
         )
         if (resolved != null) {
             Text(
-                "${Fmt.day(resolved.first)} to ${Fmt.day(resolved.second)}",
+                "${Fmt.date(resolved.first)} to ${Fmt.date(resolved.second)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = Ink.copy(alpha = 0.7f),
                 modifier = Modifier.padding(top = 6.dp),

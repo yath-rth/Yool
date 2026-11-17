@@ -59,7 +59,7 @@ fun ExerciseDetailScreen(exerciseId: Long, contentPadding: PaddingValues, onBack
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         LibBackTitle(ex?.name ?: "Exercise", onBack, subtitle = ex?.let { "${it.bodyPart.label} · ${it.type.label}" + if (it.archived) " · archived" else "" }) {
-            TxButton("Edit", { onEdit(exerciseId) }, Modifier.padding(start = 8.dp))
+            TxButton("Edit", { onEdit(exerciseId) }, Modifier.padding(start = 8.dp), fill = false)
         }
         if (ex?.note != null) Text(ex.note, style = MaterialTheme.typography.bodyMedium)
         TxSegmented(DetailTab.entries, tab, { tab = it }, label = { it.label })
@@ -83,7 +83,7 @@ private fun HistoryTab(ex: Exercise, rows: List<ExerciseSetRow>, onOpenWorkout: 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(sessions, key = { it.first().workoutId }) { s ->
             ShadowCard(Modifier.fillMaxWidth(), onClick = { onOpenWorkout(s.first().workoutId) }, contentPadding = 12.dp) {
-                Text(Fmt.day(s.first().date), style = MaterialTheme.typography.titleSmall)
+                Text(Fmt.date(s.first().date), style = MaterialTheme.typography.titleSmall)
                 Text(s.first().workoutName, style = MaterialTheme.typography.labelMedium)
                 s.sortedBy { it.position }.forEachIndexed { i, r ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -147,15 +147,16 @@ private fun ChartsTab(rows: List<ExerciseSetRow>) {
     val inRange = sessions.filter { !it.date.isBefore(range.first) && !it.date.isAfter(range.second) }
     Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         RangeSelector(sel, range, { sel = it })
-        ChartCard("Est. 1RM (kg)", inRange, range, MetricColors.Weight) { it.best1RmKg }
-        ChartCard("Max weight (kg)", inRange, range, MetricColors.Protein) { it.maxWeightKg }
-        ChartCard("Session volume (kg)", inRange, range, MetricColors.Workout) { it.volumeKg.takeIf { v -> v > 0 } }
+        ChartCard("Est. 1RM (kg)", sessions, inRange, range, MetricColors.Weight) { it.best1RmKg }
+        ChartCard("Max weight (kg)", sessions, inRange, range, MetricColors.Protein) { it.maxWeightKg }
+        ChartCard("Session volume (kg)", sessions, inRange, range, MetricColors.Workout) { it.volumeKg.takeIf { v -> v > 0 } }
     }
 }
 
 @Composable
 private fun ChartCard(
     title: String,
+    all: List<ExerciseSessionPoint>,
     sessions: List<ExerciseSessionPoint>,
     range: Pair<LocalDate, LocalDate>,
     color: androidx.compose.ui.graphics.Color,
@@ -166,7 +167,9 @@ private fun ChartCard(
         Text(title.uppercase(), style = MaterialTheme.typography.labelMedium)
         if (pts.isEmpty()) Text("No data in this range.", style = MaterialTheme.typography.bodyMedium)
         else {
-            val best = pts.maxBy { it.value }
+            // "PR" marks the all-time best, and only when it falls inside the visible range.
+            val allTimeBest = all.mapNotNull { s -> value(s)?.let { DatePoint(s.date, it) } }.maxByOrNull { it.value }
+            val best = allTimeBest?.takeIf { b -> pts.any { it.date == b.date && it.value == b.value } }
             TimeChart(range.first, range.second, height = 160.dp, lines = listOf(LineSeries(pts, color, dots = true)), highlight = best)
         }
     }
