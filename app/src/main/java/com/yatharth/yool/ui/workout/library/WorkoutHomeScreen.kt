@@ -113,6 +113,7 @@ fun WorkoutHomeScreen(
     onOpenHistory: () -> Unit,
     onOpenWorkout: (workoutId: Long) -> Unit,
     onOpenExercises: () -> Unit,
+    onOpenMeasurements: () -> Unit = {},
 ) {
     val repo = LocalContext.current.appContainer.workoutRepository
     val vm: WorkoutHomeViewModel = viewModel(factory = viewModelFactory { initializer { WorkoutHomeViewModel(repo) } })
@@ -199,7 +200,8 @@ fun WorkoutHomeScreen(
         item {
             TxListGroup(title = "Library") {
                 TxListRow("All history", onOpenHistory)
-                TxListRow("Exercises", onOpenExercises, divider = false)
+                TxListRow("Exercises", onOpenExercises)
+                TxListRow("Measurements", onOpenMeasurements, divider = false)
             }
         }
         item { Spacer(Modifier.height(24.dp)) }

@@ -25,6 +25,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.yatharth.yool.data.model.Meal
+import com.yatharth.yool.data.model.MeasurementPart
+import com.yatharth.yool.ui.measurements.MeasurementLogScreen
+import com.yatharth.yool.ui.measurements.MeasurementPartScreen
+import com.yatharth.yool.ui.measurements.MeasurementsScreen
 import com.yatharth.yool.ui.day.DayScreen
 import com.yatharth.yool.ui.food.FoodDiaryScreen
 import com.yatharth.yool.ui.food.FoodEditorScreen
@@ -93,6 +97,13 @@ object Routes {
     /** exerciseId 0 = new exercise. */
     const val EXERCISE_EDITOR = "exerciseEditor/{exerciseId}"
     fun exerciseEditor(id: Long = 0) = "exerciseEditor/$id"
+
+    const val MEASUREMENTS = "measurements"
+    /** epochDay -1 = today. */
+    const val MEASUREMENT_LOG = "measurements/log/{epochDay}"
+    fun measurementLog(date: LocalDate? = null) = "measurements/log/${date?.toEpochDay() ?: -1}"
+    const val MEASUREMENT_PART = "measurements/part/{part}"
+    fun measurementPart(part: MeasurementPart) = "measurements/part/${part.name}"
 }
 
 /** Bottom-bar tabs. Keys are each tab's root route. */
@@ -109,7 +120,8 @@ private fun tabFor(route: String?): String? = when {
     route == null -> null
     route == Routes.TODAY || route.startsWith("day/") || route == Routes.HISTORY -> Routes.TODAY
     route.startsWith("food") || route.startsWith("savedMeal") -> Routes.FOOD_TAB
-    route.startsWith("workout") || route.startsWith("template") || route.startsWith("exercise") -> Routes.WORKOUT
+    route.startsWith("workout") || route.startsWith("template") || route.startsWith("exercise") ||
+        route.startsWith("measurements") -> Routes.WORKOUT
     route == Routes.GRAPHS -> Routes.GRAPHS
     route.startsWith("settings") -> Routes.SETTINGS
     else -> null
@@ -248,6 +260,7 @@ private fun NavGraphBuilder.workoutGraph(nav: NavHostController, padding: Paddin
             onOpenHistory = { nav.navigate(Routes.WORKOUT_HISTORY) },
             onOpenWorkout = { nav.navigate(Routes.workoutDetail(it)) },
             onOpenExercises = { nav.navigate(Routes.EXERCISES) },
+            onOpenMeasurements = { nav.navigate(Routes.MEASUREMENTS) },
         )
     }
     composable(Routes.ACTIVE_WORKOUT) {
@@ -270,6 +283,24 @@ private fun NavGraphBuilder.workoutGraph(nav: NavHostController, padding: Paddin
     }
     composable(Routes.TEMPLATE_EDITOR, arguments = listOf(idArg("templateId"))) { e ->
         TemplateEditorScreen(e.arguments!!.getLong("templateId"), padding, onDone = { nav.popBackStack() })
+    }
+    composable(Routes.MEASUREMENTS) {
+        MeasurementsScreen(
+            padding, onBack = { nav.popBackStack() },
+            onLog = { nav.navigate(Routes.measurementLog()) },
+            onOpenPart = { nav.navigate(Routes.measurementPart(it)) },
+        )
+    }
+    composable(Routes.MEASUREMENT_LOG, arguments = listOf(navArgument("epochDay") { type = NavType.LongType })) { e ->
+        val day = e.arguments!!.getLong("epochDay")
+        MeasurementLogScreen(if (day < 0) null else LocalDate.ofEpochDay(day), padding, onDone = { nav.popBackStack() })
+    }
+    composable(Routes.MEASUREMENT_PART, arguments = listOf(navArgument("part") { type = NavType.StringType })) { e ->
+        MeasurementPartScreen(
+            MeasurementPart.valueOf(e.arguments!!.getString("part")!!), padding,
+            onBack = { nav.popBackStack() },
+            onEditDay = { nav.navigate(Routes.measurementLog(it)) },
+        )
     }
     composable(Routes.EXERCISES) {
         ExerciseLibraryScreen(

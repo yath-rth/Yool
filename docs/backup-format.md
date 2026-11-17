@@ -1,4 +1,4 @@
-# yool backup format (version 3)
+# yool backup format (version 4)
 
 A single UTF-8 JSON document. Used by Settings > Data > Backup / Restore and for one-off
 history migration (e.g. MyFitnessPal / Google Takeout converted to this schema).
@@ -20,7 +20,7 @@ Restore calls `repository.restore(..., overwriteManual = false)`:
 
 | field           | type   | notes                                                                 |
 |-----------------|--------|-----------------------------------------------------------------------|
-| `formatVersion` | int    | `3` (v1/v2 files still restore). Higher versions are rejected.        |
+| `formatVersion` | int    | `4` (v1–v3 files still restore). Higher versions are rejected.        |
 | `exportedAt`    | string | ISO-8601 instant, informational.                                      |
 | `entries`       | array  | optional (default empty). Things the user typed. Objects below.       |
 | `imported`      | array  | optional. Externally sourced values.                                  |
@@ -32,6 +32,7 @@ Restore calls `repository.restore(..., overwriteManual = false)`:
 | `exercises`     | array  | optional (v3). Exercise library.                                      |
 | `templates`     | array  | optional (v3). Workout templates.                                     |
 | `workouts`      | array  | optional (v3). Finished workouts, every set.                          |
+| `measurements`  | array  | optional (v4). Body measurements.                                     |
 
 Unknown keys are ignored. All dates are ISO `yyyy-MM-dd`. Enums are their exact upper-case names.
 
@@ -123,3 +124,10 @@ Exercise entries (`exercises[]` inside templates and workouts): `exercise` (exer
 Sets: `type` (`NORMAL`, `WARMUP`, `DROP`, `FAILURE`), `weightKg`, `reps`, `durationSec`, `distanceM`,
 `rpe` (workouts only), `restSec` (rest after the set), `completed` (default true), `completedAt`.
 Only completed `NORMAL`/`FAILURE` sets count toward records and the Lifts graph.
+
+## Measurements (v4)
+
+`measurements[]`: `date`, `part` (`BODY_FAT`, `NECK`, `SHOULDERS`, `CHEST`, `LEFT_BICEP`, `RIGHT_BICEP`,
+`LEFT_FOREARM`, `RIGHT_FOREARM`, `UPPER_ABS`, `WAIST`, `LOWER_ABS`, `HIPS`, `LEFT_THIGH`, `RIGHT_THIGH`,
+`LEFT_CALF`, `RIGHT_CALF`), `value` (cm; % for `BODY_FAT`). One per (`date`, `part`); restore only adds
+pairs that don't exist yet.
