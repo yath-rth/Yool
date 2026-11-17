@@ -54,6 +54,8 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
+import com.yatharth.yool.ui.components.TxConfirmDialog
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
@@ -164,7 +166,7 @@ fun TemplateEditorScreen(templateId: Long, contentPadding: PaddingValues, onDone
     BackHandler(onBack = leave)
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        LibBackTitle(if (templateId == 0L) "New template" else "Edit template", leave)
+        TxTopBar(if (templateId == 0L) "New template" else "Edit template", onBack = leave)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TxTextField(s.name, vm::setName, "Name", Modifier.fillMaxWidth(), maxLength = 60, placeholder = "e.g. Push")
             TxTextField(s.note, vm::setNote, "Note", Modifier.fillMaxWidth(), singleLine = false)
@@ -184,6 +186,7 @@ fun TemplateEditorScreen(templateId: Long, contentPadding: PaddingValues, onDone
                 )
             }
             TxButton("Add exercise", { picking = Picking.ADD }, Modifier.fillMaxWidth(), icon = Icons.Outlined.Add)
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp))
         }
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TxButton("Cancel", leave, Modifier.weight(1f))
@@ -197,7 +200,7 @@ fun TemplateEditorScreen(templateId: Long, contentPadding: PaddingValues, onDone
         null -> Unit
     }
     if (confirmDiscard) {
-        ConfirmDialog("Discard changes", "You have unsaved changes to this template.", "Discard", { confirmDiscard = false; onDone() }, { confirmDiscard = false })
+        TxConfirmDialog("Discard changes", "You have unsaved changes to this template.", "Discard", { confirmDiscard = false; onDone() }, { confirmDiscard = false })
     }
 }
 

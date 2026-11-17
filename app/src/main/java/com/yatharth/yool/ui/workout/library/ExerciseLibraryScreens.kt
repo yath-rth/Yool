@@ -42,6 +42,12 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
+import com.yatharth.yool.ui.components.TxCollapsible
+import com.yatharth.yool.ui.components.TxConfirmDialog
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxTopBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import com.yatharth.yool.ui.components.TxSwitch
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
@@ -87,27 +93,33 @@ fun ExerciseLibraryScreen(contentPadding: PaddingValues, onBack: () -> Unit, onO
     val showArchived by vm.showArchived.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LibBackTitle("Exercises", onBack, subtitle = rows?.let { "${it.size} shown" }) {
-            TxButton("+ New", onNewExercise, Modifier.padding(start = 8.dp), fill = false)
+        TxTopBar("Exercises", subtitle = rows?.let { "${it.size} shown" }, onBack = onBack) {
+            TxIconButton(Icons.Outlined.Add, "New exercise", onNewExercise)
         }
         TxTextField(query, { vm.query.value = it }, "Search", Modifier.fillMaxWidth(), placeholder = "Exercise name")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             TxChip("All", bodyPart == null, { vm.bodyPart.value = null })
             BodyPart.entries.forEach { bp -> TxChip(bp.label, bodyPart == bp, { vm.bodyPart.value = if (bodyPart == bp) null else bp }) }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            TxChip("Any type", type == null, { vm.type.value = null }, color = Ink)
-            ExerciseType.entries.forEach { t -> TxChip(t.label, type == t, { vm.type.value = if (type == t) null else t }, color = Ink) }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TxSwitch(showArchived, { vm.showArchived.value = it })
-            Text("SHOW ARCHIVED", style = MaterialTheme.typography.labelMedium)
+        TxCollapsible(
+            "More filters",
+            summary = listOfNotNull(type?.label, if (showArchived) "Archived" else null).joinToString(" · ").ifEmpty { null },
+            initiallyExpanded = type != null || showArchived,
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                TxChip("Any type", type == null, { vm.type.value = null }, color = Ink)
+                ExerciseType.entries.forEach { t -> TxChip(t.label, type == t, { vm.type.value = if (type == t) null else t }, color = Ink) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TxSwitch(showArchived, { vm.showArchived.value = it })
+                Text("SHOW ARCHIVED", style = MaterialTheme.typography.labelMedium)
+            }
         }
         val list = rows
         when {
             list == null -> Unit
-            list.isEmpty() -> EmptyState("No exercises", "Nothing matches. Create one with + NEW.")
-            else -> LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            list.isEmpty() -> EmptyState("No exercises", "Nothing matches your filters.")
+            else -> LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(list, key = { it.exercise.id }) { r ->
                     ShadowCard(Modifier.fillMaxWidth(), onClick = { onOpenExercise(r.exercise.id) }, contentPadding = 12.dp) {
                         Text(r.exercise.name + if (r.exercise.archived) "  (archived)" else "", style = MaterialTheme.typography.titleSmall)
@@ -189,7 +201,7 @@ fun ExerciseEditorScreen(exerciseId: Long, contentPadding: PaddingValues, onDone
     var confirmDelete by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        LibBackTitle(if (exerciseId == 0L) "New exercise" else "Edit exercise", onDone)
+        TxTopBar(if (exerciseId == 0L) "New exercise" else "Edit exercise", onBack = onDone)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TxTextField(s.name, { v -> vm.edit { it.copy(name = v) } }, "Name", Modifier.fillMaxWidth(), maxLength = 60, placeholder = "e.g. Incline Dumbbell Press")
             if (s.error != null) Text(s.error!!, style = MaterialTheme.typography.labelMedium, color = Coral)
@@ -224,7 +236,7 @@ fun ExerciseEditorScreen(exerciseId: Long, contentPadding: PaddingValues, onDone
         }
     }
     if (confirmDelete) {
-        ConfirmDialog(
+        TxConfirmDialog(
             "Delete exercise", "Delete \"${s.name}\"? If it appears in any workout or template it will be archived instead.",
             "Delete", onConfirm = { confirmDelete = false; vm.remove(onDone) }, onDismiss = { confirmDelete = false },
         )
