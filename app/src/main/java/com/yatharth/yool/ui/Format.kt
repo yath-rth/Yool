@@ -26,6 +26,7 @@ object Fmt {
     fun source(s: Source?): String = when (s) {
         null -> ""
         Source.MANUAL -> "typed"
+        Source.FOOD_LOG -> "food log"
         Source.MFP -> "MyFitnessPal"
         Source.HEALTH_CONNECT -> "Health Connect"
         Source.STRONG_CSV -> "Strong"
