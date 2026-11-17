@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-private val TimeFmt = DateTimeFormatter.ofPattern("HH:mm")
+private val TimeFmt = DateTimeFormatter.ofPattern("hh:mm a")
 
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -129,7 +129,7 @@ fun RemindersSection() {
 
     editing?.let { type ->
         val t = settings.getValue(type).time
-        val state = rememberTimePickerState(initialHour = t.hour, initialMinute = t.minute, is24Hour = true)
+        val state = rememberTimePickerState(initialHour = t.hour, initialMinute = t.minute, is24Hour = false)
         AlertDialog(
             onDismissRequest = { editing = null },
             title = { Text(type.label) },

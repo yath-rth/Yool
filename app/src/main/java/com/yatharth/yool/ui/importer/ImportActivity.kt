@@ -161,7 +161,7 @@ class ImportActivity : ComponentActivity() {
                         StatValue("Workouts", Fmt.int(p.workoutDates.size))
                         StatValue("Exercises", Fmt.int(p.exercises.size))
                         p.dateRange?.let {
-                            StatValue("Date range", if (it.start == it.endInclusive) it.start.toString() else "${it.start} to ${it.endInclusive}")
+                            StatValue("Date range", if (it.start == it.endInclusive) Fmt.dateNoRelative(it.start) else "${Fmt.dateNoRelative(it.start)} to ${Fmt.dateNoRelative(it.endInclusive)}")
                         }
                     }
                     ShadowCard {

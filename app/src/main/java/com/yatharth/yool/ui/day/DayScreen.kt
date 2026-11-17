@@ -67,7 +67,6 @@ import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.theme.ItemsBg
 import com.yatharth.yool.ui.theme.MetricColors
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 /**
  * The daily log for one date. Used as the Today tab (date = today) and for editing any past day.
@@ -129,8 +128,10 @@ private fun DayHeader(date: LocalDate, onNavigateDay: ((LocalDate) -> Unit)?, on
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(Fmt.day(date).uppercase(), style = MaterialTheme.typography.labelLarge)
-            Text(date.format(DateTimeFormatter.ISO_LOCAL_DATE), style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
+            Text(Fmt.date(date).uppercase(), style = MaterialTheme.typography.labelLarge)
+            val sub = if (Fmt.date(date) != Fmt.dateNoRelative(date)) Fmt.dateNoRelative(date)
+            else date.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+            Text(sub, style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
         }
         if (onNavigateDay != null) {
             NavArrow(Icons.AutoMirrored.Outlined.ArrowBack) { onNavigateDay(date.minusDays(1)) }

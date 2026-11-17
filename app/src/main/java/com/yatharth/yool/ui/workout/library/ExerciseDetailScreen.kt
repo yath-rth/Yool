@@ -83,7 +83,7 @@ private fun HistoryTab(ex: Exercise, rows: List<ExerciseSetRow>, onOpenWorkout: 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(sessions, key = { it.first().workoutId }) { s ->
             ShadowCard(Modifier.fillMaxWidth(), onClick = { onOpenWorkout(s.first().workoutId) }, contentPadding = 12.dp) {
-                Text(Fmt.day(s.first().date), style = MaterialTheme.typography.titleSmall)
+                Text(Fmt.date(s.first().date), style = MaterialTheme.typography.titleSmall)
                 Text(s.first().workoutName, style = MaterialTheme.typography.labelMedium)
                 s.sortedBy { it.position }.forEachIndexed { i, r ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

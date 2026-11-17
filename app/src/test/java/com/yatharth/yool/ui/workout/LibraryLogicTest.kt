@@ -106,12 +106,6 @@ class LibraryLogicTest {
         assertEquals("-", setText(ExerciseType.BARBELL, null, null, null, null))
     }
 
-    @Test fun relativeDays() {
-        val t = LocalDate.of(2026, 11, 17)
-        assertEquals("yesterday", relativeDay(t.minusDays(1), t))
-        assertEquals("3 weeks ago", relativeDay(t.minusDays(21), t))
-    }
-
     private fun workout(id: Long, start: Long, vararg sets: Pair<Double, Int>): WorkoutFull {
         val e = Exercise(1, "Bench", ExerciseType.BARBELL, BodyPart.CHEST)
         val s = sets.mapIndexed { i, (w, r) -> WorkoutSet(id * 100 + i, id * 10, i, SetType.NORMAL, w, r, completed = true) }

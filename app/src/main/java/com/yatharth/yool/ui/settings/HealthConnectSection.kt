@@ -29,8 +29,7 @@ import com.yatharth.yool.ui.theme.Amber
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Green
 import com.yatharth.yool.ui.theme.Ink
-import java.text.DateFormat
-import java.util.Date
+import com.yatharth.yool.ui.Fmt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -79,7 +78,7 @@ fun HealthConnectSection() {
                 }
                 if (connected) {
                     Text(
-                        "Last sync: " + (lastSync?.let { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it)) } ?: "never"),
+                        "Last sync: " + (lastSync?.let { if (System.currentTimeMillis() - it < 3_600_000) Fmt.timeAgo(it) else Fmt.dateTime(it) } ?: "never"),
                         style = MaterialTheme.typography.labelMedium,
                     )
                     when (val s = status) {

@@ -80,7 +80,7 @@ private fun DayRow(d: ResolvedDay, onClick: () -> Unit) {
     ShadowCard(shadow = 3.dp, contentPadding = 12.dp, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(Modifier.weight(1f)) {
-                Text(Fmt.day(d.date), style = MaterialTheme.typography.bodyMedium)
+                Text(Fmt.date(d.date), style = MaterialTheme.typography.bodyMedium)
                 Text(
                     listOfNotNull(
                         d.weightKg?.let { "${Fmt.kg(it)}kg" },

@@ -64,17 +64,14 @@ class WorkoutHistoryViewModel(repo: WorkoutRepository) : ViewModel() {
     fun loadMore() { shown.value += PAGE }
 }
 
-private val timeFmt = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
-
-internal fun workoutTime(w: WorkoutFull): String =
-    java.time.Instant.ofEpochMilli(w.workout.startedAt).atZone(java.time.ZoneId.systemDefault()).format(timeFmt)
+internal fun workoutTime(w: WorkoutFull): String = Fmt.time(w.workout.startedAt)
 
 /** Card used by history and the home "Recent" list. */
 @Composable
 internal fun WorkoutCard(w: WorkoutFull, prs: Int?, onClick: () -> Unit, maxLines: Int = 6) {
     ShadowCard(Modifier.fillMaxWidth(), onClick = onClick, contentPadding = 12.dp) {
         Text(w.workout.name, style = MaterialTheme.typography.titleSmall)
-        Text("${Fmt.day(w.workout.date)} · ${workoutTime(w)}", style = MaterialTheme.typography.labelMedium)
+        Text("${Fmt.date(w.workout.date)} · ${workoutTime(w)}", style = MaterialTheme.typography.labelMedium)
         val ended = w.workout.endedAt
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (ended != null) Text(WorkoutMath.formatDuration(ended - w.workout.startedAt), style = MaterialTheme.typography.labelMedium)
