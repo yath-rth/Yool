@@ -21,6 +21,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -215,7 +225,20 @@ fun TxTextField(
     maxLength: Int? = null,
     placeholder: String = "",
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Keep the whole field (label + box + counter) above the keyboard: when it is focused and the
+    // IME is up, ask the enclosing scroll container to bring it into view.
+    val requester = remember { BringIntoViewRequester() }
+    var focused by remember { mutableStateOf(false) }
+    // Keyed on the live IME height: every animation frame restarts the effect, so the request only
+    // fires once the keyboard has finished rising and the viewport has its final size.
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(focused, imeBottom) {
+        if (focused && imeBottom > 0) {
+            delay(80)
+            requester.bringIntoView()
+        }
+    }
+    Column(modifier.bringIntoViewRequester(requester), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall)
         Box(Modifier.padding(end = 3.dp, bottom = 3.dp)) {
             Box(Modifier.matchParentSize().offset(3.dp, 3.dp).background(Ink, FieldShape))
@@ -238,7 +261,7 @@ fun TxTextField(
                         textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold, color = Ink),
                         cursorBrush = SolidColor(Ink),
                         keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
                     )
                 }
                 if (unit != null) Text(unit, style = MaterialTheme.typography.labelMedium)

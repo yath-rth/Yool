@@ -3,6 +3,7 @@ package com.yatharth.yool.ui.navigation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Restaurant
@@ -129,7 +130,13 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
           }
         },
     ) { padding ->
-        NavHost(navController, startDestination = Routes.TODAY) {
+        // Screens apply `padding` inside their own scroll, so the viewport itself must stop at the top of
+        // the keyboard (full IME height); then focused fields scroll fully into view instead of hiding.
+        NavHost(
+            navController,
+            startDestination = Routes.TODAY,
+            modifier = Modifier.imePadding(),
+        ) {
             composable(Routes.TODAY) {
                 DayScreen(
                     LocalDate.now(), padding,
