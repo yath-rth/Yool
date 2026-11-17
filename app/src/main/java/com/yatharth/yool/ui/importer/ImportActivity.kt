@@ -26,7 +26,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import com.yatharth.yool.appContainer
+import com.yatharth.yool.data.db.Exercise
+import com.yatharth.yool.data.model.BodyPart
+import com.yatharth.yool.data.model.ExerciseType
 import com.yatharth.yool.io.strong.StrongImport
+import com.yatharth.yool.io.strong.StrongWorkouts
 import com.yatharth.yool.io.strong.StrongParseResult
 import com.yatharth.yool.io.strong.WeightUnit
 import com.yatharth.yool.ui.Fmt
@@ -50,8 +54,8 @@ class ImportActivity : ComponentActivity() {
     private sealed interface Stage {
         data object Loading : Stage
         data class Error(val message: String) : Stage
-        data class Ready(val parsed: StrongParseResult) : Stage
-        data class Done(val workouts: Int, val lifts: Int) : Stage
+        data class Ready(val parsed: StrongParseResult, val text: String) : Stage
+        data class Done(val workouts: Int, val lifts: Int, val logged: Int, val templates: List<String>) : Stage
     }
 
     private var stage by mutableStateOf<Stage>(Stage.Loading)
@@ -96,7 +100,7 @@ class ImportActivity : ComponentActivity() {
                 }
                 val parsed = withContext(Dispatchers.Default) { StrongImport.parse(text) }
                 if (parsed.sets.isEmpty()) Stage.Error("No importable sets found (rows need reps; warm-ups are skipped).")
-                else Stage.Ready(parsed)
+                else Stage.Ready(parsed, text)
             } catch (e: StrongImport.FormatException) {
                 Stage.Error(e.message ?: "Couldn't read the file.")
             } catch (e: Exception) {
@@ -105,7 +109,7 @@ class ImportActivity : ComponentActivity() {
         }
     }
 
-    private fun runImport(parsed: StrongParseResult) {
+    private fun runImport(parsed: StrongParseResult, text: String) {
         if (importing) return
         importing = true
         lifecycleScope.launch {
@@ -115,7 +119,14 @@ class ImportActivity : ComponentActivity() {
                 val repo = applicationContext.appContainer.repository
                 repo.upsertLifts(lifts)
                 repo.upsertImported(workouts)
-                stage = Stage.Done(workouts.size, lifts.size)
+                // Full set-by-set history into the workout log (idempotent by start time), then seed templates.
+                val full = withContext(Dispatchers.Default) { StrongWorkouts.parse(text, unit) }
+                val workoutRepo = applicationContext.appContainer.workoutRepository
+                val logged = workoutRepo.importWorkouts(full.workouts) { name ->
+                    full.exercises[name] ?: Exercise(name = name, type = ExerciseType.MACHINE, bodyPart = BodyPart.OTHER)
+                }
+                val templates = workoutRepo.seedTemplatesFromHistory(StrongWorkouts.SeedTemplateNames)
+                stage = Stage.Done(workouts.size, lifts.size, logged, templates)
             } catch (e: Exception) {
                 stage = Stage.Error("Import failed: ${e.message ?: e.javaClass.simpleName}")
             } finally {
@@ -163,10 +174,10 @@ class ImportActivity : ComponentActivity() {
                         TxSegmented(WeightUnit.entries, unit, { unit = it }, label = { it.label })
                     }
                     Text(
-                        "Re-importing is safe: the best set per exercise per day is overwritten, nothing is duplicated.",
+                        "Every set goes into your workout log. Re-importing is safe: workouts already in yool are skipped, nothing is duplicated.",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    TxButton(if (importing) "Importing…" else "Import", onClick = { runImport(p) }, bg = Green, enabled = !importing)
+                    TxButton(if (importing) "Importing…" else "Import", onClick = { runImport(p, s.text) }, bg = Green, enabled = !importing)
                     TxButton("Cancel", onClick = { finish() })
                 }
 
@@ -175,6 +186,8 @@ class ImportActivity : ComponentActivity() {
                         SectionLabel("Imported")
                         StatValue("Workout days", Fmt.int(s.workouts), color = Green)
                         StatValue("Best sets saved", Fmt.int(s.lifts), color = Green)
+                        StatValue("New workouts in log", Fmt.int(s.logged), color = Green)
+                        if (s.templates.isNotEmpty()) StatValue("Templates created", s.templates.joinToString(", "), color = Green)
                     }
                     TxButton("Done", onClick = { finish() })
                 }
