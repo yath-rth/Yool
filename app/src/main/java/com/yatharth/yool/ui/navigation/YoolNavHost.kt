@@ -40,7 +40,6 @@ import com.yatharth.yool.ui.food.SavedMealEditorScreen
 import com.yatharth.yool.ui.food.SavedMealsScreen
 import com.yatharth.yool.ui.graphs.GraphsScreen
 import com.yatharth.yool.ui.history.HistoryScreen
-import com.yatharth.yool.ui.insights.InsightsScreen
 import com.yatharth.yool.ui.settings.SettingsScreen
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.workout.ActiveWorkoutBanner
@@ -61,7 +60,6 @@ object Routes {
     const val TODAY = "today"
     const val HISTORY = "history"
     const val GRAPHS = "graphs"
-    const val INSIGHTS = "insights"
     const val SETTINGS = "settings"
     const val DAY = "day/{epochDay}"
     fun day(date: LocalDate) = "day/${date.toEpochDay()}"
@@ -150,7 +148,6 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
             }
             composable(Routes.HISTORY) { HistoryScreen(padding) { navController.navigate(Routes.day(it)) } }
             composable(Routes.GRAPHS) { GraphsScreen(padding) }
-            composable(Routes.INSIGHTS) { InsightsScreen(padding) }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     padding,
