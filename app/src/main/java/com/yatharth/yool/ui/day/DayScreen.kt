@@ -57,7 +57,9 @@ import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
 import com.yatharth.yool.ui.components.TxProgress
 import com.yatharth.yool.ui.components.TxSwitch
+import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxTextField
+import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.ui.theme.Amber
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Green
@@ -84,7 +86,8 @@ fun DayScreen(
     onOpenWorkout: (workoutId: Long) -> Unit = {},
 ) {
     val repo = LocalContext.current.appContainer.repository
-    val vm: DayViewModel = viewModel(key = "day-$date", factory = viewModelFactory { initializer { DayViewModel(repo, date) } })
+    val workoutRepo = LocalContext.current.appContainer.workoutRepository
+    val vm: DayViewModel = viewModel(key = "day-$date", factory = viewModelFactory { initializer { DayViewModel(repo, workoutRepo, date) } })
     val state by vm.state.collectAsStateWithLifecycle()
 
     val syncEngine = LocalContext.current.appContainer.syncEngine
@@ -113,7 +116,7 @@ fun DayScreen(
         CheckInCard(state, k, vm::update)
         NutritionCard(state, k, vm::update) { onOpenFood(date) }
         ActivityCard(state, k, vm::update)
-        WorkoutCard(state, vm::update)
+        WorkoutCard(state, date == LocalDate.now(), vm::update, onStartWorkout, onOpenWorkout)
         Spacer(Modifier.height(24.dp))
     }
     }
@@ -371,7 +374,13 @@ private fun MetricBlock(
 // ── Workout ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun WorkoutCard(state: DayUiState, update: ((DailyEntry) -> DailyEntry) -> Unit) {
+private fun WorkoutCard(
+    state: DayUiState,
+    isToday: Boolean,
+    update: ((DailyEntry) -> DailyEntry) -> Unit,
+    onStartWorkout: () -> Unit,
+    onOpenWorkout: (Long) -> Unit,
+) {
     val d = state.day
     ShadowCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -390,7 +399,24 @@ private fun WorkoutCard(state: DayUiState, update: ((DailyEntry) -> DailyEntry) 
             TxSwitch(checked = d.workoutDone == true, onCheckedChange = { v -> update { it.copy(workoutDone = v) } })
         }
         d.sources[Metric.WORKOUT]?.let { SourceTag("Source: ${Fmt.source(it)}") }
-        if (state.lifts.isNotEmpty()) {
+        state.workouts.forEach { w ->
+            Column(
+                Modifier.fillMaxWidth().clickable { onOpenWorkout(w.workout.id) }.padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Row(Modifier.fillMaxWidth()) {
+                    Text(w.workout.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                    Text(
+                        WorkoutMath.formatDuration((w.workout.endedAt ?: w.workout.startedAt) - w.workout.startedAt) +
+                            " · ${WorkoutMath.kg(WorkoutMath.volume(w))} kg",
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+                WorkoutMath.exerciseLines(w).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+        // Best sets only for imported days with no logged workout (logged workouts already list their exercises).
+        if (state.workouts.isEmpty() && state.lifts.isNotEmpty()) {
             SectionLabel("Best sets")
             state.lifts.forEach { l ->
                 Row(Modifier.fillMaxWidth()) {
@@ -398,6 +424,11 @@ private fun WorkoutCard(state: DayUiState, update: ((DailyEntry) -> DailyEntry) 
                     Text("${Fmt.kg(l.weightKg)} kg × ${l.reps}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold)
                 }
             }
+        }
+        if (state.activeWorkout != null) {
+            TxButton("RESUME WORKOUT", onClick = onStartWorkout, modifier = Modifier.fillMaxWidth())
+        } else if (isToday) {
+            TxButton("START WORKOUT", onClick = onStartWorkout, modifier = Modifier.fillMaxWidth())
         }
     }
 }

@@ -266,6 +266,13 @@ object WorkoutMath {
         return out
     }
 
+    /** One line per exercise with completed sets, e.g. "3 × Lat Pulldown (Cable)". */
+    fun exerciseLines(workout: WorkoutFull): List<String> =
+        workout.ordered.mapNotNull { ex ->
+            val n = ex.sets.count { it.completed }
+            if (n > 0) "$n × ${ex.exercise.name}" else null
+        }
+
     /** "1h 05m" / "42m" / "45s". */
     fun formatDuration(ms: Long): String {
         val totalSec = (ms / 1000).coerceAtLeast(0)
