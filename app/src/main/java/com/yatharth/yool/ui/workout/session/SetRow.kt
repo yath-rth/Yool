@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -166,7 +167,8 @@ internal fun SetRow(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(if (set.completed) Green.copy(alpha = 0.22f) else ItemsBg, RoundedCornerShape(4.dp))
+                    // Opaque: the swipe-to-delete background (Coral) sits underneath and would tint a translucent green brown.
+                    .background(if (set.completed) Green.copy(alpha = 0.22f).compositeOver(ItemsBg) else ItemsBg, RoundedCornerShape(4.dp))
                     .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
