@@ -56,7 +56,7 @@ private fun ResolvedDay.hasAnyData() =
     weightKg != null || calories != null || steps != null || sleepHours != null || mood != null || binge != null || workoutDone != null
 
 @Composable
-fun HistoryScreen(contentPadding: PaddingValues, onOpenDay: (LocalDate) -> Unit) {
+fun HistoryScreen(contentPadding: PaddingValues, onOpenDay: (LocalDate) -> Unit, onBack: (() -> Unit)? = null) {
     val repo = LocalContext.current.appContainer.repository
     val vm: HistoryViewModel = viewModel(factory = viewModelFactory { initializer { HistoryViewModel(repo) } })
     val days by vm.days.collectAsStateWithLifecycle()

@@ -83,6 +83,8 @@ fun DayScreen(
     onStartWorkout: () -> Unit = {},
     /** Opens a finished workout's detail. */
     onOpenWorkout: (workoutId: Long) -> Unit = {},
+    /** Opens the history list (Today tab only). */
+    onOpenHistory: (() -> Unit)? = null,
 ) {
     val repo = LocalContext.current.appContainer.repository
     val workoutRepo = LocalContext.current.appContainer.workoutRepository

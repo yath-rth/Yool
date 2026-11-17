@@ -111,7 +111,8 @@ class FoodDiaryViewModel(
 fun FoodDiaryScreen(
     date: LocalDate,
     contentPadding: PaddingValues,
-    onBack: () -> Unit,
+    /** null when shown as the Food tab root. */
+    onBack: (() -> Unit)?,
     onAddFood: (Meal) -> Unit,
     onNavigateDay: (LocalDate) -> Unit,
     onOpenSavedMeals: () -> Unit,
@@ -136,7 +137,7 @@ fun FoodDiaryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
+            if (onBack != null) Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
             ScreenTitle("Food", Modifier.weight(1f), subtitle = Fmt.date(date))
             NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "Previous day") { onNavigateDay(date.minusDays(1)) }
             Spacer(Modifier.size(8.dp))
