@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
@@ -34,14 +35,15 @@ import com.yatharth.yool.io.strong.StrongWorkouts
 import com.yatharth.yool.io.strong.StrongParseResult
 import com.yatharth.yool.io.strong.WeightUnit
 import com.yatharth.yool.ui.Fmt
-import com.yatharth.yool.ui.components.ScreenTitle
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxSegmented
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Green
+import com.yatharth.yool.ui.theme.ItemsBg
 import com.yatharth.yool.ui.theme.YoolTheme
 import com.yatharth.yool.ui.theme.dotGridBackground
 import kotlinx.coroutines.Dispatchers
@@ -141,7 +143,7 @@ class ImportActivity : ComponentActivity() {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ScreenTitle("Import from Strong")
+            TxTopBar("Import from Strong", onBack = { finish() })
             when (val s = stage) {
                 Stage.Loading -> ShadowCard { Text("Reading file…", style = MaterialTheme.typography.bodyMedium) }
 
@@ -150,7 +152,7 @@ class ImportActivity : ComponentActivity() {
                         SectionLabel("Couldn't import")
                         Text(s.message, style = MaterialTheme.typography.bodyMedium, color = Coral)
                     }
-                    TxButton("Close", onClick = { finish() })
+                    TxButton("Close", onClick = { finish() }, modifier = Modifier.fillMaxWidth())
                 }
 
                 is Stage.Ready -> {
@@ -177,8 +179,8 @@ class ImportActivity : ComponentActivity() {
                         "Every set goes into your workout log. Re-importing is safe: workouts already in yool are skipped, nothing is duplicated.",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    TxButton(if (importing) "Importing…" else "Import", onClick = { runImport(p, s.text) }, bg = Green, enabled = !importing)
-                    TxButton("Cancel", onClick = { finish() })
+                    TxButton(if (importing) "Importing…" else "Import", onClick = { runImport(p, s.text) }, bg = Coral, textColor = ItemsBg, enabled = !importing, modifier = Modifier.fillMaxWidth())
+                    TxButton("Cancel", onClick = { finish() }, modifier = Modifier.fillMaxWidth())
                 }
 
                 is Stage.Done -> {
@@ -189,7 +191,7 @@ class ImportActivity : ComponentActivity() {
                         StatValue("New workouts in log", Fmt.int(s.logged), color = Green)
                         if (s.templates.isNotEmpty()) StatValue("Templates created", s.templates.joinToString(", "), color = Green)
                     }
-                    TxButton("Done", onClick = { finish() })
+                    TxButton("Done", onClick = { finish() }, bg = Coral, textColor = ItemsBg, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
