@@ -420,16 +420,17 @@ fun TxBottomBar(items: List<TxNavItem>, selectedKey: String?, onSelect: (TxNavIt
         ) {
             items.forEach { item ->
                 val sel = item.key == selectedKey
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Box(Modifier.padding(end = 3.dp, bottom = 3.dp)) {
+                Box(Modifier.weight(1f).padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().padding(end = 3.dp, bottom = 3.dp)) {
                         if (sel) Box(Modifier.matchParentSize().offset(3.dp, 3.dp).background(Ink, Shape4))
                         Column(
                             Modifier
+                                .fillMaxWidth()
                                 .clip(Shape4)
                                 .background(if (sel) ItemsBg else Color.Transparent, Shape4)
                                 .then(if (sel) Modifier.border(1.5.dp, Ink, Shape4) else Modifier)
                                 .clickable { onSelect(item) }
-                                .padding(horizontal = 6.dp, vertical = 6.dp),
+                                .padding(horizontal = 2.dp, vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Icon(item.icon, item.label, Modifier.size(22.dp), tint = if (sel) Coral else Ink)

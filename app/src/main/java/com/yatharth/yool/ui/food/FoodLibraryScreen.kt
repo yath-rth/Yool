@@ -57,7 +57,7 @@ fun FoodLibraryScreen(
 
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         TxTopBar(
-            "My foods", subtitle = "${shown.size} ${if (shown.size == 1) "food" else "foods"}", onBack = onBack,
+            "My foods", modifier = Modifier.padding(horizontal = 16.dp), subtitle = "${shown.size} ${if (shown.size == 1) "food" else "foods"}", onBack = onBack,
             actions = { TxIconButton(Icons.Outlined.Add, "New food", onNewFood) },
         )
         Column(Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -81,8 +81,8 @@ fun FoodLibraryScreen(
                                     f.name,
                                     onClick = { onEditFood(f.id) },
                                     modifier = Modifier.alpha(if (f.archived) 0.5f else 1f),
-                                    subtitle = listOfNotNull(f.brand, f.servingLabel).joinToString(" · ") +
-                                        (if (f.archived) " · Archived" else ""),
+                                    subtitle = listOfNotNull(f.brand, f.servingLabel).joinToString(" Â· ") +
+                                        (if (f.archived) " Â· Archived" else ""),
                                     value = "${FoodInput.kcal(f.kcal)} kcal",
                                     chevron = false,
                                     divider = i < shown.lastIndex,

@@ -48,7 +48,7 @@ fun SavedMealsScreen(
 
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         TxTopBar(
-            "Saved meals", onBack = onBack,
+            "Saved meals", modifier = Modifier.padding(horizontal = 16.dp), onBack = onBack,
             actions = { TxIconButton(Icons.Outlined.Add, "New saved meal", { onEdit(0) }) },
         )
         val list = meals.orEmpty()
@@ -63,7 +63,7 @@ fun SavedMealsScreen(
                             TxListRow(
                                 m.meal.name,
                                 onClick = { onEdit(m.meal.id) },
-                                subtitle = "${m.items.size} ${if (m.items.size == 1) "item" else "items"} · ${Math.round(t.proteinG)} g protein",
+                                subtitle = "${m.items.size} ${if (m.items.size == 1) "item" else "items"} Â· ${Math.round(t.proteinG)} g protein",
                                 value = "${Math.round(t.kcal)} kcal",
                                 chevron = false,
                                 divider = i < list.lastIndex,

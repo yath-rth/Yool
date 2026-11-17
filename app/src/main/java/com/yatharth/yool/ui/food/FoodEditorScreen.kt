@@ -63,7 +63,7 @@ fun FoodEditorScreen(
     fun edit(d: FoodDraft) { draft = d; error = null }
 
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
-        TxTopBar(if (foodId == 0L) "New food" else "Edit food", onBack = onDone)
+        TxTopBar(if (foodId == 0L) "New food" else "Edit food", onBack = onDone, modifier = Modifier.padding(horizontal = 16.dp))
         if (!loaded) return@Column
         Column(
             Modifier

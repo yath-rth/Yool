@@ -131,7 +131,7 @@ fun SavedMealEditorScreen(
     var picking by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
-        TxTopBar(if (mealId == 0L) "New saved meal" else "Edit saved meal", onBack = onDone)
+        TxTopBar(if (mealId == 0L) "New saved meal" else "Edit saved meal", onBack = onDone, modifier = Modifier.padding(horizontal = 16.dp))
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -203,7 +203,7 @@ private fun FoodPickerDialog(vm: SavedMealEditorViewModel, onDismiss: () -> Unit
                 Column(Modifier.fillMaxWidth().clickable { onPick(f) }.padding(vertical = 8.dp)) {
                     Text(f.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        listOfNotNull(f.brand, f.servingLabel).joinToString(" · ") + " · " + macroLine(f.perServing),
+                        listOfNotNull(f.brand, f.servingLabel).joinToString(" Â· ") + " Â· " + macroLine(f.perServing),
                         style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f),
                     )
                 }

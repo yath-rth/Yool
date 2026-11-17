@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -66,7 +67,9 @@ fun ShadowCard(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press by animateDpAsState(if (pressed && onClick != null) 2.dp else 0.dp, tween(50), label = "press")
-    Box(modifier.padding(end = shadow, bottom = shadow)) {
+    // propagateMinConstraints: when the caller fixes the height (e.g. fillMaxHeight in an
+    // IntrinsicSize.Min row) the content stretches with it instead of leaving shadow showing.
+    Box(modifier.padding(end = shadow, bottom = shadow), propagateMinConstraints = true) {
         Box(
             Modifier
                 .matchParentSize()
@@ -138,7 +141,7 @@ fun TxSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
             Modifier
                 .size(width = 48.dp, height = 28.dp)
                 .clip(CardShape)
-                .background(if (checked) Green.copy(alpha = 0.15f) else ItemsBg)
+                .background(if (checked) Green.copy(alpha = 0.15f).compositeOver(ItemsBg) else ItemsBg)
                 .border(2.dp, Ink, CardShape)
                 .clickable { onCheckedChange(!checked) }
                 .padding(4.dp),
@@ -149,7 +152,7 @@ fun TxSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
                     .offset(x = thumb)
                     .size(18.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(if (checked) Green else Ink.copy(alpha = 0.2f))
+                    .background(if (checked) Green else Ink.copy(alpha = 0.2f).compositeOver(ItemsBg))
                     .border(1.5.dp, Ink, RoundedCornerShape(2.dp))
             )
         }
@@ -183,7 +186,7 @@ fun <T> TxSegmented(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .background(if (isSel) selectedColor.copy(alpha = 0.12f) else Color.Transparent)
+                        .background(if (isSel) selectedColor.copy(alpha = 0.12f).compositeOver(ItemsBg) else ItemsBg)
                         .clickable { onSelect(opt) },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -253,7 +256,7 @@ fun TxChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modif
     Box(
         modifier
             .clip(CardShape)
-            .background(if (selected) color.copy(alpha = 0.15f) else ItemsBg, CardShape)
+            .background(if (selected) color.copy(alpha = 0.15f).compositeOver(ItemsBg) else ItemsBg, CardShape)
             .border(1.5.dp, if (selected) color else Ink, CardShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)

@@ -117,7 +117,7 @@ fun FoodSearchScreen(
 
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         TxTopBar(
-            "Add food", subtitle = "${meal.label} · ${com.yatharth.yool.ui.Fmt.date(date)}", onBack = onBack,
+            "Add food", modifier = Modifier.padding(horizontal = 16.dp), subtitle = "${meal.label} Â· ${com.yatharth.yool.ui.Fmt.date(date)}", onBack = onBack,
             actions = { TxIconButton(Icons.Outlined.Add, "New food", onNewFood) },
         )
         Column(
@@ -183,7 +183,7 @@ private fun FoodGroup(title: String?, foods: List<Food>, onClick: (Food) -> Unit
             TxListRow(
                 food.name,
                 onClick = { onClick(food) },
-                subtitle = listOfNotNull(food.brand, food.servingLabel).joinToString(" · "),
+                subtitle = listOfNotNull(food.brand, food.servingLabel).joinToString(" Â· "),
                 value = "${FoodInput.kcal(food.kcal)} kcal",
                 chevron = false,
                 divider = i < foods.lastIndex,

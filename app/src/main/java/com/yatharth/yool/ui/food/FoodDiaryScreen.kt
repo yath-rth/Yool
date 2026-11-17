@@ -136,7 +136,7 @@ fun FoodDiaryScreen(
 
     Column(Modifier.fillMaxSize().padding(contentPadding)) {
         TxTopBar(
-            "Food", subtitle = Fmt.date(date), onBack = onBack,
+            "Food", modifier = Modifier.padding(horizontal = 16.dp), subtitle = Fmt.date(date), onBack = onBack,
             actions = {
                 TxIconButton(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "Previous day", { onNavigateDay(date.minusDays(1)) })
                 if (date.isBefore(LocalDate.now())) {

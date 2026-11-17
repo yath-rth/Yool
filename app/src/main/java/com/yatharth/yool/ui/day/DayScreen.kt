@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -189,9 +191,9 @@ private fun MetricGrid(state: DayUiState, onOpen: (Tile) -> Unit) {
     val calOver = TargetCheck.caloriesHit(d.calories, calT) == false
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TxMetricTile(
-                "Weight", Fmt.kg(weight), Modifier.weight(1f), unit = "kg", color = MetricColors.Weight,
+                "Weight", Fmt.kg(weight), Modifier.weight(1f).fillMaxHeight(), unit = "kg", color = MetricColors.Weight,
                 footnote = when {
                     goal == null -> null
                     diff == null -> "goal ${Fmt.kg(goal)} kg"
@@ -200,35 +202,35 @@ private fun MetricGrid(state: DayUiState, onOpen: (Tile) -> Unit) {
                 onClick = { onOpen(Tile.Weight) },
             )
             TxMetricTile(
-                "Calories", Fmt.int(d.calories), Modifier.weight(1f), unit = "kcal", color = MetricColors.Calories,
+                "Calories", Fmt.int(d.calories), Modifier.weight(1f).fillMaxHeight(), unit = "kcal", color = MetricColors.Calories,
                 progress = frac(d.calories?.toDouble(), calT), progressColor = if (calOver) Coral else MetricColors.Calories,
                 footnote = calT?.let { "of ${Fmt.int(it.toLong())} limit" },
                 footnoteColor = if (calOver) Coral else Ink.copy(alpha = 0.7f),
                 onClick = { onOpen(Tile.Calories) },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TxMetricTile(
-                "Protein", Fmt.int(d.proteinG?.toInt()), Modifier.weight(1f), unit = "g", color = MetricColors.Protein,
+                "Protein", Fmt.int(d.proteinG?.toInt()), Modifier.weight(1f).fillMaxHeight(), unit = "g", color = MetricColors.Protein,
                 progress = frac(d.proteinG, proT), footnote = proT?.let { "of ${Fmt.int(it.toLong())} g" },
                 onClick = { onOpen(Tile.Protein) },
             )
             TxMetricTile(
-                "Steps", Fmt.int(d.steps), Modifier.weight(1f), color = MetricColors.Steps,
+                "Steps", Fmt.int(d.steps), Modifier.weight(1f).fillMaxHeight(), color = MetricColors.Steps,
                 progress = frac(d.steps?.toDouble(), stepT), footnote = stepT?.let { "of ${Fmt.int(it.toLong())}" },
                 onClick = { onOpen(Tile.Steps) },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TxMetricTile(
-                "Sleep", Fmt.one(d.sleepHours), Modifier.weight(1f), unit = "h", color = MetricColors.Sleep,
+                "Sleep", Fmt.one(d.sleepHours), Modifier.weight(1f).fillMaxHeight(), unit = "h", color = MetricColors.Sleep,
                 progress = frac(d.sleepHours, sleepT), footnote = sleepT?.let { "target ${Fmt.one(it)} h" },
                 onClick = { onOpen(Tile.Sleep) },
             )
             TxMetricTile(
                 "Workout",
                 when (d.workoutDone) { true -> "Done"; false -> "Rest"; null -> "—" },
-                Modifier.weight(1f), color = MetricColors.Workout,
+                Modifier.weight(1f).fillMaxHeight(), color = MetricColors.Workout,
                 footnote = when (d.workoutDone) { true -> "Trained"; false -> "Rest day"; null -> "Not logged" },
                 onClick = { onOpen(Tile.Workout) },
             )
