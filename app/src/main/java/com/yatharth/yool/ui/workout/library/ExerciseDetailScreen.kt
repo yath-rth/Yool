@@ -36,6 +36,10 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxTopBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
 import com.yatharth.yool.ui.components.TxSegmented
 import com.yatharth.yool.ui.graphs.LineSeries
 import com.yatharth.yool.ui.graphs.RangeSelection
@@ -58,8 +62,12 @@ fun ExerciseDetailScreen(exerciseId: Long, contentPadding: PaddingValues, onBack
     val ex = exercise
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        LibBackTitle(ex?.name ?: "Exercise", onBack, subtitle = ex?.let { "${it.bodyPart.label} · ${it.type.label}" + if (it.archived) " · archived" else "" }) {
-            TxButton("Edit", { onEdit(exerciseId) }, Modifier.padding(start = 8.dp), fill = false)
+        TxTopBar(
+            ex?.name ?: "Exercise",
+            subtitle = ex?.let { "${it.bodyPart.label} · ${it.type.label}" + if (it.archived) " · archived" else "" },
+            onBack = onBack,
+        ) {
+            TxIconButton(Icons.Outlined.Edit, "Edit exercise", { onEdit(exerciseId) })
         }
         if (ex?.note != null) Text(ex.note, style = MaterialTheme.typography.bodyMedium)
         TxSegmented(DetailTab.entries, tab, { tab = it }, label = { it.label })
@@ -80,8 +88,13 @@ fun ExerciseDetailScreen(exerciseId: Long, contentPadding: PaddingValues, onBack
 @Composable
 private fun HistoryTab(ex: Exercise, rows: List<ExerciseSetRow>, onOpenWorkout: (Long) -> Unit) {
     val sessions = remember(rows) { rows.groupBy { it.workoutId }.values.sortedByDescending { it.first().startedAt } }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(sessions, key = { it.first().workoutId }) { s ->
+    var showAll by remember { mutableStateOf(false) }
+    val visible = if (showAll) sessions else sessions.take(5)
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (sessions.size > 5) item(key = "toggle") {
+            TxButton(if (showAll) "Show latest 5" else "Show all ${sessions.size} sessions", { showAll = !showAll }, Modifier.fillMaxWidth())
+        }
+        items(visible, key = { it.first().workoutId }) { s ->
             ShadowCard(Modifier.fillMaxWidth(), onClick = { onOpenWorkout(s.first().workoutId) }, contentPadding = 12.dp) {
                 Text(Fmt.date(s.first().date), style = MaterialTheme.typography.titleSmall)
                 Text(s.first().workoutName, style = MaterialTheme.typography.labelMedium)

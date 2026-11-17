@@ -5,11 +5,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,12 +33,17 @@ import com.yatharth.yool.domain.PrKind
 import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.domain.WorkoutSummary
 import com.yatharth.yool.ui.Fmt
-import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxActionSheet
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxConfirmDialog
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxPromptDialog
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
+import com.yatharth.yool.ui.theme.ItemsBg
 import kotlinx.coroutines.launch
 
 private fun prLabel(kinds: Set<PrKind>): String = kinds.joinToString(" ") {
@@ -57,15 +66,23 @@ fun WorkoutDetailScreen(
     var summary by remember { mutableStateOf<WorkoutSummary?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var savingTemplate by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
     var savedMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(w) { if (w != null) summary = repo.summary(workoutId) }
 
     val workout = w
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        LibBackTitle(workout?.workout?.name ?: "Workout", onBack, subtitle = workout?.let { "${Fmt.date(it.workout.date)} · ${workoutTime(it)}" })
+        TxTopBar(
+            workout?.workout?.name ?: "Workout",
+            subtitle = workout?.let { "${Fmt.date(it.workout.date)} · ${workoutTime(it)}" },
+            onBack = onBack,
+        ) { if (workout != null) TxIconButton(Icons.Outlined.MoreVert, "More", { menu = true }) }
         if (workout == null) return@Column
         val prs = summary?.prs.orEmpty().associate { (it.first to it.second) to it.third }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             ShadowCard(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth()) {
                     val ended = workout.workout.endedAt
@@ -78,6 +95,11 @@ fun WorkoutDetailScreen(
                 }
                 if (workout.workout.note != null) Text(workout.workout.note, style = MaterialTheme.typography.bodyMedium)
             }
+            TxButton(
+                "Start again", { scope.launch { repo.repeatWorkout(workoutId); onOpenActive() } },
+                Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg,
+            )
+            if (savedMessage != null) Text(savedMessage!!, style = MaterialTheme.typography.labelMedium)
             workout.ordered.forEach { ex ->
                 ShadowCard(Modifier.fillMaxWidth(), contentPadding = 12.dp) {
                     Text(
@@ -96,28 +118,30 @@ fun WorkoutDetailScreen(
                     }
                 }
             }
-            SectionLabel("Actions")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TxButton("Edit", { onEdit(workoutId) }, Modifier.weight(1f))
-                TxButton("Start again", { scope.launch { repo.repeatWorkout(workoutId); onOpenActive() } }, Modifier.weight(1f))
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TxButton("Save as template", { savingTemplate = true }, Modifier.weight(1f))
-                TxButton("Delete", { confirmDelete = true }, Modifier.weight(1f), bg = Coral, textColor = com.yatharth.yool.ui.theme.ItemsBg)
-            }
-            if (savedMessage != null) Text(savedMessage!!, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(24.dp))
         }
     }
 
+    if (menu) {
+        TxActionSheet(
+            workout?.workout?.name, { menu = false },
+            listOf(
+                "Edit" to { menu = false; onEdit(workoutId) },
+                "Save as template" to { menu = false; savingTemplate = true },
+                "Delete" to { menu = false; confirmDelete = true },
+            ),
+            destructive = setOf("Delete"),
+        )
+    }
     if (confirmDelete) {
-        ConfirmDialog(
+        TxConfirmDialog(
             "Delete workout", "Delete this workout and all its sets? This can't be undone.", "Delete",
             onConfirm = { confirmDelete = false; scope.launch { repo.deleteWorkout(workoutId); onBack() } },
             onDismiss = { confirmDelete = false },
         )
     }
     if (savingTemplate) {
-        PromptDialog(
+        TxPromptDialog(
             "Save as template", "Template name", workout?.workout?.name ?: "", "Save",
             onConfirm = { name -> savingTemplate = false; scope.launch { repo.saveWorkoutAsTemplate(workoutId, name); savedMessage = "Saved template \"$name\"." } },
             onDismiss = { savingTemplate = false },

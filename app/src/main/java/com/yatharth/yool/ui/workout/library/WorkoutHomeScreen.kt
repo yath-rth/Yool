@@ -39,13 +39,29 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
-import com.yatharth.yool.ui.components.ScreenTitle
-import com.yatharth.yool.ui.graphs.BarDatum
-import com.yatharth.yool.ui.graphs.TimeChart
+import com.yatharth.yool.ui.components.EmptyState
+import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxActionSheet
+import com.yatharth.yool.ui.components.TxConfirmDialog
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxListGroup
+import com.yatharth.yool.ui.components.TxListRow
+import com.yatharth.yool.ui.components.TxPromptDialog
+import com.yatharth.yool.ui.components.TxTopBar
+import com.yatharth.yool.domain.WorkoutMath
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import java.time.DayOfWeek
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.theme.ItemsBg
-import com.yatharth.yool.ui.theme.MetricColors
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,12 +95,14 @@ private sealed interface HomeDialog {
     data class Rename(val t: TemplateFull) : HomeDialog
     data class MoveTo(val t: TemplateFull) : HomeDialog
     data class Delete(val t: TemplateFull) : HomeDialog
+    data object AddMenu : HomeDialog
     data object NewFolder : HomeDialog
+    data class FolderMenu(val f: TemplateFolder) : HomeDialog
     data class RenameFolder(val f: TemplateFolder) : HomeDialog
     data class DeleteFolder(val f: TemplateFolder) : HomeDialog
 }
 
-/** Workout tab home: start empty, templates (with folders), recent history. */
+/** Workout tab home: weekly hero + start, templates (with folders), recent history, library links. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Composable
 fun WorkoutHomeScreen(
@@ -111,79 +129,85 @@ fun WorkoutHomeScreen(
 
     val ordered = templates.sortedWith(compareBy({ it.template.position }, { it.template.name.lowercase() }))
     val loose = ordered.filter { t -> folders.none { it.id == t.template.folderId } }
+    val weekStart = today.with(DayOfWeek.MONDAY)
+    val thisWeek = weekly.count { it.workout.endedAt != null && !it.workout.date.isBefore(weekStart) && !it.workout.date.isAfter(weekStart.plusDays(6)) }
+    val lastDate = recent.firstOrNull()?.workout?.date
 
     LazyColumn(
         Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { ScreenTitle("Workout") }
+        item { TxTopBar("Workout") }
         item {
-            if (active != null) TxButton("Resume workout", onOpenActive, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
-            else TxButton("Start an empty workout", { startFrom(null) }, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
-        }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TxButton("Exercises", onOpenExercises, Modifier.weight(1f))
-                TxButton("History", onOpenHistory, Modifier.weight(1f))
+            ShadowCard(Modifier.fillMaxWidth()) {
+                StatValue("This week", if (thisWeek == 1) "1 workout" else "$thisWeek workouts", big = true)
+                Text(
+                    if (lastDate != null) "Last workout: ${Fmt.date(lastDate)}" else "No workouts yet",
+                    style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f),
+                )
+                if (active != null) TxButton("Resume workout", onOpenActive, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
+                else TxButton("Start empty workout", { startFrom(null) }, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
             }
         }
         item {
-            // TxButton fills its width, so the label gets its own line and the buttons share a row.
-            SectionLabel("Templates")
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TxButton("+ Template", { onEditTemplate(0) }, Modifier.weight(1f))
-                TxButton("+ Folder", { dialog = HomeDialog.NewFolder }, Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                SectionLabel("Templates", Modifier.weight(1f))
+                TxIconButton(Icons.Outlined.Add, "Add template or folder", { dialog = HomeDialog.AddMenu })
             }
         }
         if (templates.isEmpty() && folders.isEmpty()) {
-            item { Text("No templates yet. Create one, or save a finished workout as a template.", style = MaterialTheme.typography.bodyMedium) }
+            item { EmptyState("No templates yet", "Tap + to create one, or save a finished workout as a template.") }
         }
-        if (loose.isNotEmpty()) {
-            item { Text("MY TEMPLATES", style = MaterialTheme.typography.labelSmall) }
-            loose.forEach { t -> item(key = "t-${t.template.id}") { TemplateCard(t, today, { dialog = HomeDialog.Preview(t) }, { dialog = HomeDialog.Menu(t) }) } }
-        }
+        loose.forEach { t -> item(key = "t-${t.template.id}") { TemplateCard(t, { dialog = HomeDialog.Preview(t) }, { dialog = HomeDialog.Menu(t) }) } }
         folders.forEach { f ->
             val inFolder = ordered.filter { it.template.folderId == f.id }
             val isCollapsed = f.id in collapsed
             item(key = "f-${f.id}") {
-                Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        (if (isCollapsed) "+ " else "- ") + f.name.uppercase() + " (${inFolder.size})",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f).clickable { collapsed = if (isCollapsed) collapsed - f.id else collapsed + f.id }.padding(vertical = 8.dp),
-                    )
-                    TextAction("Rename", { dialog = HomeDialog.RenameFolder(f) })
-                    TextAction("Delete", { dialog = HomeDialog.DeleteFolder(f) }, color = Coral)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier.weight(1f).clickable { collapsed = if (isCollapsed) collapsed - f.id else collapsed + f.id }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(if (isCollapsed) Icons.AutoMirrored.Outlined.KeyboardArrowRight else Icons.Outlined.KeyboardArrowDown, if (isCollapsed) "Expand" else "Collapse")
+                        Text(f.name.uppercase() + " (${inFolder.size})", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold)
+                    }
+                    IconAction(Icons.Outlined.MoreVert, "Folder menu", { dialog = HomeDialog.FolderMenu(f) })
                 }
             }
-            if (!isCollapsed) inFolder.forEach { t -> item(key = "t-${t.template.id}") { TemplateCard(t, today, { dialog = HomeDialog.Preview(t) }, { dialog = HomeDialog.Menu(t) }) } }
+            if (!isCollapsed) inFolder.forEach { t -> item(key = "t-${t.template.id}") { TemplateCard(t, { dialog = HomeDialog.Preview(t) }, { dialog = HomeDialog.Menu(t) }) } }
         }
 
-        val weeks = workoutsPerWeek(weekly.map { it.workout.date }, today, 8)
-        if (weeks.any { it.second > 0 }) {
-            item { SectionLabel("Workouts per week") }
+        if (recent.isNotEmpty()) {
             item {
-                ShadowCard(Modifier.fillMaxWidth(), contentPadding = 12.dp) {
-                    TimeChart(
-                        weeks.first().first, weeks.last().first.plusDays(6), height = 120.dp,
-                        bars = weeks.map { BarDatum(it.first, it.second.toDouble(), MetricColors.Workout) }, barSpanDays = 7,
-                        yFormat = { v -> "%.0f".format(v) },
-                    )
+                TxListGroup(title = "Recent") {
+                    recent.take(3).forEachIndexed { i, w ->
+                        val ended = w.workout.endedAt
+                        val stats = listOfNotNull(
+                            ended?.let { WorkoutMath.formatDuration(it - w.workout.startedAt) },
+                            "${WorkoutMath.kg(Math.round(WorkoutMath.volume(w)).toDouble())} kg",
+                        ).joinToString(" · ")
+                        TxListRow(
+                            w.workout.name, { onOpenWorkout(w.workout.id) },
+                            subtitle = "${Fmt.date(w.workout.date)} · $stats",
+                            divider = i < minOf(recent.size, 3) - 1,
+                        )
+                    }
                 }
             }
         }
-        if (recent.isNotEmpty()) {
-            item { SectionLabel("Recent") }
-            recent.forEach { w -> item(key = "r-${w.workout.id}") { WorkoutCard(w, null, { onOpenWorkout(w.workout.id) }, maxLines = 3) } }
-            item { TxButton("All history", onOpenHistory, Modifier.fillMaxWidth()) }
+        item {
+            TxListGroup(title = "Library") {
+                TxListRow("All history", onOpenHistory)
+                TxListRow("Exercises", onOpenExercises, divider = false)
+            }
         }
-        item { androidx.compose.foundation.layout.Spacer(Modifier.padding(8.dp)) }
+        item { Spacer(Modifier.height(24.dp)) }
     }
 
     when (val d = dialog) {
         null -> Unit
-        is HomeDialog.Preview -> TxDialog({ dialog = null }) {
-            Text(d.t.template.name.uppercase(), style = MaterialTheme.typography.labelLarge)
+        is HomeDialog.Preview -> TxDialog(d.t.template.name, { dialog = null }) {
             if (d.t.template.note != null) Text(d.t.template.note, style = MaterialTheme.typography.bodyMedium)
             exerciseLines(d.t).forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
             if (active != null) Text("A workout is already in progress; START resumes it.", style = MaterialTheme.typography.labelSmall, color = Coral)
@@ -192,48 +216,66 @@ fun WorkoutHomeScreen(
                 TxButton("Start", { startFrom(d.t.template.id) }, Modifier.weight(1f), bg = Coral, textColor = ItemsBg)
             }
         }
-        is HomeDialog.Menu -> TxDialog({ dialog = null }) {
-            Text(d.t.template.name.uppercase(), style = MaterialTheme.typography.labelLarge)
-            TextAction("Edit", { dialog = null; onEditTemplate(d.t.template.id) })
-            TextAction("Rename", { dialog = HomeDialog.Rename(d.t) })
-            TextAction("Duplicate", { vm.duplicate(d.t.template.id); dialog = null })
-            TextAction("Move to folder", { dialog = HomeDialog.MoveTo(d.t) })
-            TextAction("Delete", { dialog = HomeDialog.Delete(d.t) }, color = Coral)
-        }
-        is HomeDialog.Rename -> PromptDialog("Rename template", "Name", d.t.template.name, "Rename", { vm.rename(d.t.template.id, it); dialog = null }, { dialog = null })
-        is HomeDialog.MoveTo -> TxDialog({ dialog = null }) {
-            Text("MOVE TO FOLDER", style = MaterialTheme.typography.labelLarge)
+        HomeDialog.AddMenu -> TxActionSheet(
+            null, { dialog = null },
+            listOf(
+                "New template" to { dialog = null; onEditTemplate(0) },
+                "New folder" to { dialog = HomeDialog.NewFolder },
+            ),
+        )
+        is HomeDialog.Menu -> TxActionSheet(
+            d.t.template.name, { dialog = null },
+            listOf(
+                "Edit" to { dialog = null; onEditTemplate(d.t.template.id) },
+                "Rename" to { dialog = HomeDialog.Rename(d.t) },
+                "Duplicate" to { vm.duplicate(d.t.template.id); dialog = null },
+                "Move to folder" to { dialog = HomeDialog.MoveTo(d.t) },
+                "Delete" to { dialog = HomeDialog.Delete(d.t) },
+            ),
+            destructive = setOf("Delete"),
+        )
+        is HomeDialog.FolderMenu -> TxActionSheet(
+            d.f.name, { dialog = null },
+            listOf(
+                "Rename" to { dialog = HomeDialog.RenameFolder(d.f) },
+                "Delete" to { dialog = HomeDialog.DeleteFolder(d.f) },
+            ),
+            destructive = setOf("Delete"),
+        )
+        is HomeDialog.Rename -> TxPromptDialog("Rename template", "Name", d.t.template.name, "Rename", { vm.rename(d.t.template.id, it); dialog = null }, { dialog = null })
+        is HomeDialog.MoveTo -> TxDialog("Move to folder", { dialog = null }) {
             TxChip("No folder", d.t.template.folderId == null, { vm.move(d.t.template.id, null); dialog = null })
             folders.forEach { f -> TxChip(f.name, d.t.template.folderId == f.id, { vm.move(d.t.template.id, f.id); dialog = null }) }
-            if (folders.isEmpty()) Text("Create a folder first with + FOLDER.", style = MaterialTheme.typography.labelSmall)
+            if (folders.isEmpty()) Text("Create a folder first.", style = MaterialTheme.typography.labelSmall)
         }
-        is HomeDialog.Delete -> ConfirmDialog(
+        is HomeDialog.Delete -> TxConfirmDialog(
             "Delete template", "Delete \"${d.t.template.name}\"? Past workouts are kept.", "Delete",
             { vm.delete(d.t.template.id); dialog = null }, { dialog = null },
         )
-        HomeDialog.NewFolder -> PromptDialog("New folder", "Name", "", "Create", { vm.saveFolder(TemplateFolder(name = it, position = folders.size)); dialog = null }, { dialog = null })
-        is HomeDialog.RenameFolder -> PromptDialog("Rename folder", "Name", d.f.name, "Rename", { vm.saveFolder(d.f.copy(name = it)); dialog = null }, { dialog = null })
-        is HomeDialog.DeleteFolder -> ConfirmDialog(
-            "Delete folder", "Delete folder \"${d.f.name}\"? Its templates move to My templates.", "Delete",
+        HomeDialog.NewFolder -> TxPromptDialog("New folder", "Name", "", "Create", { vm.saveFolder(TemplateFolder(name = it, position = folders.size)); dialog = null }, { dialog = null })
+        is HomeDialog.RenameFolder -> TxPromptDialog("Rename folder", "Name", d.f.name, "Rename", { vm.saveFolder(d.f.copy(name = it)); dialog = null }, { dialog = null })
+        is HomeDialog.DeleteFolder -> TxConfirmDialog(
+            "Delete folder", "Delete folder \"${d.f.name}\"? Its templates move out of the folder.", "Delete",
             { vm.deleteFolder(d.f.id); dialog = null }, { dialog = null },
         )
     }
 }
 
 @Composable
-private fun TemplateCard(t: TemplateFull, today: LocalDate, onClick: () -> Unit, onMenu: () -> Unit) {
+private fun TemplateCard(t: TemplateFull, onClick: () -> Unit, onMenu: () -> Unit) {
     ShadowCard(Modifier.fillMaxWidth(), onClick = onClick, contentPadding = 12.dp) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(t.template.name, style = MaterialTheme.typography.titleSmall)
-                val lines = exerciseLines(t)
-                if (lines.isEmpty()) Text("No exercises", style = MaterialTheme.typography.labelMedium)
-                lines.take(5).forEach { Text(it, style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.85f)) }
-                if (lines.size > 5) Text("+${lines.size - 5} more", style = MaterialTheme.typography.labelSmall)
+                val names = t.ordered.map { it.exercise.name }
+                Text(
+                    if (names.isEmpty()) "No exercises" else summaryLine(names),
+                    style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
                 val used = t.template.lastUsedAt
                 Text(
                     if (used == null) "Never used" else "Last used " + Fmt.date(used),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f),
                 )
             }
             IconAction(Icons.Outlined.MoreVert, "Template menu", onMenu)
