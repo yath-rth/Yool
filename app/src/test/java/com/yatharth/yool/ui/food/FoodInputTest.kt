@@ -35,8 +35,12 @@ class FoodInputTest {
     }
 
     @Test fun servingsLabelFormat() {
-        assertEquals("1.5 × 100 g", FoodInput.servingsLabel(1.5, "100 g"))
-        assertEquals("1 × 1 cup", FoodInput.servingsLabel(1.0, "1 cup"))
+        assertEquals("150 g", FoodInput.servingsLabel(1.5, "100 g"))
+        assertEquals("5 g", FoodInput.servingsLabel(0.05, "100 g"))
+        assertEquals("200 ml", FoodInput.servingsLabel(2.0, "100 ml"))
+        assertEquals("1 cup", FoodInput.servingsLabel(1.0, "1 cup"))
+        assertEquals("2.5 medium dosa", FoodInput.servingsLabel(2.5, "1 medium dosa"))
+        assertEquals("1.5 × big bowl", FoodInput.servingsLabel(1.5, "big bowl"))
     }
 
     @Test fun draftValidation() {
