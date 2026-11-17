@@ -12,6 +12,7 @@ import com.yatharth.yool.domain.DayResolver
 import com.yatharth.yool.domain.FoodMath
 import com.yatharth.yool.domain.ResolvedDay
 import com.yatharth.yool.domain.TargetHistory
+import com.yatharth.yool.domain.WorkoutMath
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -24,13 +25,19 @@ class TrackerRepository(private val db: YoolDatabase) {
     private val lifts = db.liftDao()
     private val targets = db.targetDao()
     private val food = db.foodDao()
+    private val workouts = db.workoutDao()
 
     // ── Resolved days ────────────────────────────────────────────────────────
 
-    /** Food-diary totals join imported values as source FOOD_LOG (ranked above MFP, below typed). */
+    /**
+     * Food-diary totals and finished workouts join imported values as sources FOOD_LOG / WORKOUT_LOG
+     * (ranked above MFP/Strong/HC, below typed).
+     */
     fun observeDays(from: LocalDate, to: LocalDate): Flow<List<ResolvedDay>> =
-        combine(entries.observeRange(from, to), imported.observeRange(from, to), food.observeTotals(from, to)) { e, i, f ->
-            DayResolver.resolveRange(from, to, e, i + FoodMath.asImported(f))
+        combine(
+            entries.observeRange(from, to), imported.observeRange(from, to), food.observeTotals(from, to), workouts.observeDayCounts(from, to),
+        ) { e, i, f, w ->
+            DayResolver.resolveRange(from, to, e, i + FoodMath.asImported(f) + WorkoutMath.asImported(w))
         }
 
     fun observeDay(date: LocalDate): Flow<ResolvedDay> =
@@ -63,8 +70,17 @@ class TrackerRepository(private val db: YoolDatabase) {
 
     // ── Lifts ────────────────────────────────────────────────────────────────
 
-    fun observeLifts(from: LocalDate, to: LocalDate): Flow<List<LiftBestSet>> = lifts.observeRange(from, to)
-    fun observeExercises(): Flow<List<String>> = lifts.observeExercises()
+    /** Best set per day per exercise: the workout log, with imported Strong best sets filling other days. */
+    fun observeLifts(from: LocalDate, to: LocalDate): Flow<List<LiftBestSet>> =
+        combine(lifts.observeRange(from, to), workouts.observeWorkingSets(from, to)) { imported, logged ->
+            WorkoutMath.mergeLifts(imported, WorkoutMath.bestPerDay(logged))
+        }
+
+    /** Exercise names with lift data, most frequently trained first. */
+    fun observeExercises(): Flow<List<String>> =
+        combine(workouts.observeLoggedExerciseNames(), lifts.observeExercises()) { logged, imported ->
+            (logged + imported).distinctBy { it.lowercase() }
+        }
     suspend fun upsertLifts(sets: List<LiftBestSet>) {
         if (sets.isNotEmpty()) lifts.upsertAll(sets)
     }
@@ -88,6 +104,7 @@ class TrackerRepository(private val db: YoolDatabase) {
             entries.all().firstOrNull()?.date,
             imported.all().firstOrNull()?.date,
             food.loggedDates().minOrNull(),
+            workouts.firstWorkoutDate(),
         ).minOrNull()
 
     suspend fun restore(
