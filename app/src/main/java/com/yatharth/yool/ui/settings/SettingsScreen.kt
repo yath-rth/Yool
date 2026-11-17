@@ -32,6 +32,7 @@ fun SettingsScreen(
         ScreenTitle("Settings")
         TargetsSection()
         FoodSection(onOpenFoodLibrary, onOpenSavedMeals)
+        com.yatharth.yool.ui.workout.WorkoutSettingsSection()
         HealthConnectSection()
         RemindersSection()
         DataSection()
