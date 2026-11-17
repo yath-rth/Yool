@@ -237,13 +237,21 @@ fun LegendItem(color: Color, text: String, dashed: Boolean = false) {
 
 /** Horizontal proportion bar with label and value text, for distributions and breakdowns. */
 @Composable
-fun HBarRow(label: String, fraction: Float, valueText: String, color: Color, modifier: Modifier = Modifier) {
+fun HBarRow(
+    label: String,
+    fraction: Float,
+    valueText: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    labelWidth: Dp = 84.dp,
+    valueWidth: Dp = 52.dp,
+) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(84.dp), maxLines = 1)
+        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(labelWidth), maxLines = 1)
         Box(Modifier.weight(1f).height(14.dp).background(Ink.copy(alpha = 0.07f))) {
             Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color))
         }
-        Text(valueText, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width(52.dp))
+        Text(valueText, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width(valueWidth))
     }
 }
 

@@ -91,7 +91,7 @@ object Insights {
             val target = targets.valueOn(TargetMetric.STEPS, d.date) ?: continue
             if (steps >= target) hit += mood else miss += mood
         }
-        return group("Hit step target", hit) to group("Below step target", miss)
+        return group("Target hit", hit) to group("Under target", miss)
     }
 
     /** % of days meeting each target, using the target in force on each day. */
@@ -101,10 +101,10 @@ object Insights {
             return Adherence(label, checks.count { it != null }, Stats.percentHit(checks))
         }
         return listOf(
-            of("Within calorie limit", TargetMetric.CALORIES) { d, t -> TargetCheck.caloriesHit(d.calories, t) },
-            of("Protein target hit", TargetMetric.PROTEIN) { d, t -> TargetCheck.floorHit(d.proteinG, t) },
-            of("Steps target hit", TargetMetric.STEPS) { d, t -> TargetCheck.floorHit(d.steps?.toDouble(), t) },
-            of("Sleep target hit", TargetMetric.SLEEP_HOURS) { d, t -> TargetCheck.floorHit(d.sleepHours, t) },
+            of("Calorie limit", TargetMetric.CALORIES) { d, t -> TargetCheck.caloriesHit(d.calories, t) },
+            of("Protein", TargetMetric.PROTEIN) { d, t -> TargetCheck.floorHit(d.proteinG, t) },
+            of("Steps", TargetMetric.STEPS) { d, t -> TargetCheck.floorHit(d.steps?.toDouble(), t) },
+            of("Sleep", TargetMetric.SLEEP_HOURS) { d, t -> TargetCheck.floorHit(d.sleepHours, t) },
         )
     }
 
