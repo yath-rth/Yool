@@ -7,6 +7,7 @@ import com.yatharth.yool.data.db.ImportedValue
 import com.yatharth.yool.data.db.LiftBestSet
 import com.yatharth.yool.data.db.TargetEntry
 import com.yatharth.yool.data.model.FoodSource
+import com.yatharth.yool.data.model.MeasurementPart
 import com.yatharth.yool.data.model.Meal
 import com.yatharth.yool.data.model.Metric
 import com.yatharth.yool.data.model.Source
@@ -14,6 +15,7 @@ import com.yatharth.yool.data.model.TargetMetric
 import com.yatharth.yool.data.ImportedTemplate
 import com.yatharth.yool.data.ImportedWorkout
 import com.yatharth.yool.data.ImportedWorkoutExercise
+import com.yatharth.yool.data.db.BodyMeasurement
 import com.yatharth.yool.data.db.Exercise
 import com.yatharth.yool.data.db.Workout
 import com.yatharth.yool.data.db.WorkoutSet
@@ -43,7 +45,12 @@ data class BackupFile(
     val exercises: List<ExerciseDto> = emptyList(),
     val templates: List<TemplateDto> = emptyList(),
     val workouts: List<WorkoutDto> = emptyList(),
+    val measurements: List<MeasurementDto> = emptyList(),
 )
+
+/** [part] is a MeasurementPart name; [value] in cm, or % for BODY_FAT. */
+@Serializable
+data class MeasurementDto(val date: String, val part: String, val value: Double)
 
 @Serializable
 data class ExerciseDto(
@@ -190,12 +197,13 @@ data class BackupData(
     val exercises: List<Exercise> = emptyList(),
     val templates: List<ImportedTemplate> = emptyList(),
     val workouts: List<ImportedWorkout> = emptyList(),
+    val measurements: List<BodyMeasurement> = emptyList(),
 )
 
 class BackupException(message: String) : Exception(message)
 
 object Backup {
-    const val FORMAT_VERSION = 3
+    const val FORMAT_VERSION = 4
 
     private val json = Json {
         prettyPrint = true
@@ -250,6 +258,9 @@ object Backup {
                         SetDto(it.type.name, it.weightKg, it.reps, it.durationSec, it.distanceM, it.rpe, it.restSec, it.completed, it.completedAt)
                     })
                 })
+            },
+            measurements = data.measurements.sortedWith(compareBy({ it.date }, { it.part })).map {
+                MeasurementDto(it.date.toString(), it.part.name, it.value)
             },
         )
         return json.encodeToString(BackupFile.serializer(), file)
@@ -327,6 +338,9 @@ object Backup {
                             }, e.note, e.supersetGroup)
                         },
                     )
+                },
+                measurements = file.measurements.map {
+                    BodyMeasurement(date = LocalDate.parse(it.date), part = MeasurementPart.valueOf(it.part), value = it.value)
                 },
             )
         } catch (e: IllegalArgumentException) {

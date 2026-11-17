@@ -109,6 +109,7 @@ fun DataSection() {
                     foodRepo.allFoods(), foodRepo.allLogEntries(),
                     foodRepo.allSavedMeals().map { m -> m.meal.name to m.items.map { it.item.foodId to it.item.servings } },
                     workoutRepo.allExercises(), workoutRepo.templatesForBackup(), workoutRepo.workoutsForBackup(),
+                    context.appContainer.measurementRepository.all(),
                 )
                 val text = withContext(Dispatchers.Default) { Backup.encode(data) }
                 withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { it.write(text.toByteArray()) } }
@@ -129,6 +130,7 @@ fun DataSection() {
                 repo.restore(data.entries, data.imported, data.lifts, data.targets, overwriteManual = false)
                 foodRepo.restore(data.foods, data.foodLog, data.savedMeals)
                 workoutRepo.restore(data.exercises, data.templates, data.workouts)
+                context.appContainer.measurementRepository.restore(data.measurements)
                 data
             }.onSuccess {
                 say("Restored (merged): ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries, ${it.workouts.size} workouts. Typed entries and already-logged days were kept.")
