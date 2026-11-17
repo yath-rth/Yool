@@ -125,7 +125,7 @@ fun TxButton(
                 text.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = if (enabled) textColor else textColor.copy(alpha = 0.4f),
+                color = if (enabled) textColor else Ink.copy(alpha = 0.4f),
             )
         }
     }

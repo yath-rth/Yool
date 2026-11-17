@@ -1,7 +1,7 @@
 package com.yatharth.yool.ui.workout
 
+import com.yatharth.yool.ui.components.TxDatePickerDialog
 import com.yatharth.yool.ui.components.txTimePickerColors
-import com.yatharth.yool.ui.components.txDatePickerColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.MoreVert
@@ -20,7 +18,6 @@ import com.yatharth.yool.ui.theme.ItemsBg
 import com.yatharth.yool.ui.theme.SecondaryBg
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -296,23 +293,12 @@ private fun EditTimesDialog(w: WorkoutFull, onDismiss: () -> Unit, onSave: (star
     }
     when (picking) {
         "date" -> {
-            val state = rememberDatePickerState(initialSelectedDateMillis = day.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
-            DatePickerDialog(
-                onDismissRequest = { picking = null },
-                confirmButton = {
-                    TxButton("OK", {
-                        state.selectedDateMillis?.let { day = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
-                        picking = null
-                    }, fill = false)
-                },
-                dismissButton = { TxButton("Cancel", { picking = null }, fill = false) },
-                colors = txDatePickerColors(),
-            ) {
-                DatePicker(
-                    state,
-                    colors = txDatePickerColors(),
-                )
-            }
+            TxDatePickerDialog(
+                title = "Workout date",
+                initial = day,
+                onConfirm = { day = it; picking = null },
+                onDismiss = { picking = null },
+            )
         }
         "time" -> {
             val state = rememberTimePickerState(initialHour = time.hour, initialMinute = time.minute, is24Hour = false)

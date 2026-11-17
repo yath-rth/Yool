@@ -1,17 +1,14 @@
 package com.yatharth.yool.ui.settings
 
-import com.yatharth.yool.ui.components.txDatePickerColors
+import com.yatharth.yool.ui.components.TxDatePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -159,21 +156,12 @@ private fun TargetEditor(
 
     picking?.let { which ->
         val initialDate = if (which == "from") from else (targetDate ?: today.plusMonths(3))
-        val state = rememberDatePickerState(initialSelectedDateMillis = initialDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
-        DatePickerDialog(
-            onDismissRequest = { picking = null },
-            confirmButton = {
-                TxButton("OK", fill = false, onClick = {
-                    state.selectedDateMillis?.let { ms ->
-                        val d = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
-                        if (which == "from") from = d else targetDate = d
-                    }
-                    picking = null
-                })
-            },
-            dismissButton = { TxButton("Cancel", fill = false, onClick = { picking = null }) },
-            colors = txDatePickerColors(),
-        ) { DatePicker(state, colors = txDatePickerColors()) }
+        TxDatePickerDialog(
+            title = if (which == "from") "Starts from" else "Reach goal by",
+            initial = initialDate,
+            onConfirm = { d -> if (which == "from") from = d else targetDate = d; picking = null },
+            onDismiss = { picking = null },
+        )
     }
 }
 
