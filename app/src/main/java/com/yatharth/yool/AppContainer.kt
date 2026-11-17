@@ -26,6 +26,7 @@ class YoolApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         SyncWorker.schedule(this)
+        com.yatharth.yool.reminders.ReminderScheduler.rescheduleAllAsync(this)
     }
 }
 
