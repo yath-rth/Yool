@@ -1,10 +1,11 @@
 package com.yatharth.yool.ui.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Today
@@ -42,6 +43,15 @@ import com.yatharth.yool.ui.history.HistoryScreen
 import com.yatharth.yool.ui.insights.InsightsScreen
 import com.yatharth.yool.ui.settings.SettingsScreen
 import com.yatharth.yool.ui.theme.Coral
+import com.yatharth.yool.ui.workout.ActiveWorkoutBanner
+import com.yatharth.yool.ui.workout.ActiveWorkoutScreen
+import com.yatharth.yool.ui.workout.ExerciseDetailScreen
+import com.yatharth.yool.ui.workout.ExerciseEditorScreen
+import com.yatharth.yool.ui.workout.ExerciseLibraryScreen
+import com.yatharth.yool.ui.workout.TemplateEditorScreen
+import com.yatharth.yool.ui.workout.WorkoutDetailScreen
+import com.yatharth.yool.ui.workout.WorkoutHistoryScreen
+import com.yatharth.yool.ui.workout.WorkoutHomeScreen
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.theme.SecondaryBg
 import com.yatharth.yool.ui.theme.dotGridBackground
@@ -68,15 +78,33 @@ object Routes {
     /** mealId 0 = new saved meal. */
     const val SAVED_MEAL_EDITOR = "savedMeal/{mealId}"
     fun savedMealEditor(mealId: Long = 0) = "savedMeal/$mealId"
+
+    const val WORKOUT = "workout"
+    const val ACTIVE_WORKOUT = "workout/active"
+    /** Edit a finished workout. */
+    const val WORKOUT_EDIT = "workout/edit/{workoutId}"
+    fun workoutEdit(id: Long) = "workout/edit/$id"
+    const val WORKOUT_DETAIL = "workout/detail/{workoutId}"
+    fun workoutDetail(id: Long) = "workout/detail/$id"
+    const val WORKOUT_HISTORY = "workout/history"
+    /** templateId 0 = new template. */
+    const val TEMPLATE_EDITOR = "template/{templateId}"
+    fun templateEditor(id: Long = 0) = "template/$id"
+    const val EXERCISES = "exercises"
+    const val EXERCISE_DETAIL = "exercise/{exerciseId}"
+    fun exerciseDetail(id: Long) = "exercise/$id"
+    /** exerciseId 0 = new exercise. */
+    const val EXERCISE_EDITOR = "exerciseEditor/{exerciseId}"
+    fun exerciseEditor(id: Long = 0) = "exerciseEditor/$id"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
     Tab(Routes.TODAY, "Today", Icons.Outlined.Today),
+    Tab(Routes.WORKOUT, "Workout", Icons.Outlined.FitnessCenter),
     Tab(Routes.HISTORY, "History", Icons.Outlined.CalendarMonth),
     Tab(Routes.GRAPHS, "Graphs", Icons.Outlined.ShowChart),
-    Tab(Routes.INSIGHTS, "Insights", Icons.Outlined.Insights),
     Tab(Routes.SETTINGS, "Settings", Icons.Outlined.Settings),
 )
 
@@ -89,6 +117,8 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
         modifier = Modifier.fillMaxSize().dotGridBackground(),
         containerColor = Color.Transparent,
         bottomBar = {
+          Column {
+            if (current != Routes.ACTIVE_WORKOUT) ActiveWorkoutBanner(onOpen = { navController.navigate(Routes.ACTIVE_WORKOUT) { launchSingleTop = true } })
             NavigationBar(containerColor = SecondaryBg, contentColor = Ink) {
                 tabs.forEach { tab ->
                     NavigationBarItem(
@@ -106,11 +136,17 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
                     )
                 }
             }
+          }
         },
     ) { padding ->
         NavHost(navController, startDestination = Routes.TODAY) {
             composable(Routes.TODAY) {
-                DayScreen(LocalDate.now(), padding, onOpenFood = { navController.navigate(Routes.foodDiary(it)) })
+                DayScreen(
+                    LocalDate.now(), padding,
+                    onOpenFood = { navController.navigate(Routes.foodDiary(it)) },
+                    onStartWorkout = { navController.navigate(Routes.ACTIVE_WORKOUT) },
+                    onOpenWorkout = { navController.navigate(Routes.workoutDetail(it)) },
+                )
             }
             composable(Routes.HISTORY) { HistoryScreen(padding) { navController.navigate(Routes.day(it)) } }
             composable(Routes.GRAPHS) { GraphsScreen(padding) }
@@ -132,9 +168,12 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
                     },
                     onBack = { navController.popBackStack() },
                     onOpenFood = { navController.navigate(Routes.foodDiary(it)) },
+                    onStartWorkout = { navController.navigate(Routes.ACTIVE_WORKOUT) },
+                    onOpenWorkout = { navController.navigate(Routes.workoutDetail(it)) },
                 )
             }
             foodGraph(navController, padding)
+            workoutGraph(navController, padding)
         }
     }
 }
@@ -181,6 +220,58 @@ private fun NavGraphBuilder.foodGraph(nav: NavHostController, padding: PaddingVa
     }
     composable(Routes.SAVED_MEAL_EDITOR, arguments = listOf(navArgument("mealId") { type = NavType.LongType })) { entry ->
         SavedMealEditorScreen(entry.arguments!!.getLong("mealId"), padding, onDone = { nav.popBackStack() })
+    }
+}
+
+private fun NavGraphBuilder.workoutGraph(nav: NavHostController, padding: PaddingValues) {
+    fun idArg(name: String) = navArgument(name) { type = NavType.LongType }
+    composable(Routes.WORKOUT) {
+        WorkoutHomeScreen(
+            padding,
+            onOpenActive = { nav.navigate(Routes.ACTIVE_WORKOUT) { launchSingleTop = true } },
+            onEditTemplate = { nav.navigate(Routes.templateEditor(it)) },
+            onOpenHistory = { nav.navigate(Routes.WORKOUT_HISTORY) },
+            onOpenWorkout = { nav.navigate(Routes.workoutDetail(it)) },
+            onOpenExercises = { nav.navigate(Routes.EXERCISES) },
+        )
+    }
+    composable(Routes.ACTIVE_WORKOUT) {
+        ActiveWorkoutScreen(null, padding, onClose = { nav.popBackStack() }, onOpenExercise = { nav.navigate(Routes.exerciseDetail(it)) })
+    }
+    composable(Routes.WORKOUT_EDIT, arguments = listOf(idArg("workoutId"))) { e ->
+        ActiveWorkoutScreen(e.arguments!!.getLong("workoutId"), padding, onClose = { nav.popBackStack() }, onOpenExercise = { nav.navigate(Routes.exerciseDetail(it)) })
+    }
+    composable(Routes.WORKOUT_DETAIL, arguments = listOf(idArg("workoutId"))) { e ->
+        WorkoutDetailScreen(
+            e.arguments!!.getLong("workoutId"), padding,
+            onBack = { nav.popBackStack() },
+            onEdit = { nav.navigate(Routes.workoutEdit(it)) },
+            onOpenActive = { nav.navigate(Routes.ACTIVE_WORKOUT) { launchSingleTop = true } },
+            onOpenExercise = { nav.navigate(Routes.exerciseDetail(it)) },
+        )
+    }
+    composable(Routes.WORKOUT_HISTORY) {
+        WorkoutHistoryScreen(padding, onBack = { nav.popBackStack() }, onOpenWorkout = { nav.navigate(Routes.workoutDetail(it)) })
+    }
+    composable(Routes.TEMPLATE_EDITOR, arguments = listOf(idArg("templateId"))) { e ->
+        TemplateEditorScreen(e.arguments!!.getLong("templateId"), padding, onDone = { nav.popBackStack() })
+    }
+    composable(Routes.EXERCISES) {
+        ExerciseLibraryScreen(
+            padding, onBack = { nav.popBackStack() },
+            onOpenExercise = { nav.navigate(Routes.exerciseDetail(it)) },
+            onNewExercise = { nav.navigate(Routes.exerciseEditor()) },
+        )
+    }
+    composable(Routes.EXERCISE_DETAIL, arguments = listOf(idArg("exerciseId"))) { e ->
+        ExerciseDetailScreen(
+            e.arguments!!.getLong("exerciseId"), padding, onBack = { nav.popBackStack() },
+            onEdit = { nav.navigate(Routes.exerciseEditor(it)) },
+            onOpenWorkout = { nav.navigate(Routes.workoutDetail(it)) },
+        )
+    }
+    composable(Routes.EXERCISE_EDITOR, arguments = listOf(idArg("exerciseId"))) { e ->
+        ExerciseEditorScreen(e.arguments!!.getLong("exerciseId"), padding, onDone = { nav.popBackStack() })
     }
 }
 

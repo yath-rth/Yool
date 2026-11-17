@@ -27,6 +27,7 @@ object Fmt {
         null -> ""
         Source.MANUAL -> "typed"
         Source.FOOD_LOG -> "food log"
+        Source.WORKOUT_LOG -> "workout log"
         Source.MFP -> "MyFitnessPal"
         Source.HEALTH_CONNECT -> "Health Connect"
         Source.STRONG_CSV -> "Strong"

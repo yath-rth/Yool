@@ -61,6 +61,7 @@ fun DataSection() {
     val context = LocalContext.current
     val repo = context.appContainer.repository
     val foodRepo = context.appContainer.foodRepository
+    val workoutRepo = context.appContainer.workoutRepository
     val scope = rememberCoroutineScope()
 
     var range by remember { mutableStateOf(ExportRange.WEEK) }
@@ -107,12 +108,13 @@ fun DataSection() {
                     repo.allEntries(), repo.allImported(), repo.allLifts(), repo.allTargets(),
                     foodRepo.allFoods(), foodRepo.allLogEntries(),
                     foodRepo.allSavedMeals().map { m -> m.meal.name to m.items.map { it.item.foodId to it.item.servings } },
+                    workoutRepo.allExercises(), workoutRepo.templatesForBackup(), workoutRepo.workoutsForBackup(),
                 )
                 val text = withContext(Dispatchers.Default) { Backup.encode(data) }
                 withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { it.write(text.toByteArray()) } }
                 data
             }.onSuccess {
-                say("Backed up ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries.")
+                say("Backed up ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries, ${it.workouts.size} workouts, ${it.templates.size} templates.")
             }.onFailure { say("Backup failed: ${it.message}", true) }
             busy = false
         }
@@ -126,9 +128,10 @@ fun DataSection() {
                 val data = withContext(Dispatchers.Default) { Backup.decode(text) }
                 repo.restore(data.entries, data.imported, data.lifts, data.targets, overwriteManual = false)
                 foodRepo.restore(data.foods, data.foodLog, data.savedMeals)
+                workoutRepo.restore(data.exercises, data.templates, data.workouts)
                 data
             }.onSuccess {
-                say("Restored (merged): ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries. Typed entries and already-logged days were kept.")
+                say("Restored (merged): ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries, ${it.workouts.size} workouts. Typed entries and already-logged days were kept.")
             }.onFailure {
                 say(if (it is BackupException) it.message ?: "Invalid backup." else "Restore failed: ${it.message}", true)
             }

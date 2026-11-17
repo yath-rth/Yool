@@ -1,4 +1,4 @@
-# yool backup format (version 2)
+# yool backup format (version 3)
 
 A single UTF-8 JSON document. Used by Settings > Data > Backup / Restore and for one-off
 history migration (e.g. MyFitnessPal / Google Takeout converted to this schema).
@@ -12,12 +12,15 @@ Restore calls `repository.restore(..., overwriteManual = false)`:
 - `foods`: matched by (`name`, `servingLabel`); new ones inserted. File `id`s are remapped to local ids.
 - `foodLog`: only inserted for dates that have **no** food logged yet (restoring twice never duplicates).
 - `savedMeals`: inserted unless a saved meal with the same `name` exists.
+- `exercises`: matched by `name` (case-insensitive); existing exercises are kept as they are.
+- `templates`: inserted unless a template with the same `name` exists. Folders are matched by name.
+- `workouts`: inserted unless a workout with the same `startedAt` exists (restoring twice never duplicates).
 
 ## Top level
 
 | field           | type   | notes                                                                 |
 |-----------------|--------|-----------------------------------------------------------------------|
-| `formatVersion` | int    | `2` (v1 files still restore). Higher versions are rejected.           |
+| `formatVersion` | int    | `3` (v1/v2 files still restore). Higher versions are rejected.        |
 | `exportedAt`    | string | ISO-8601 instant, informational.                                      |
 | `entries`       | array  | optional (default empty). Things the user typed. Objects below.       |
 | `imported`      | array  | optional. Externally sourced values.                                  |
@@ -26,6 +29,9 @@ Restore calls `repository.restore(..., overwriteManual = false)`:
 | `foods`         | array  | optional (v2). Food library.                                          |
 | `foodLog`       | array  | optional (v2). Food diary entries.                                    |
 | `savedMeals`    | array  | optional (v2). Saved meals.                                           |
+| `exercises`     | array  | optional (v3). Exercise library.                                      |
+| `templates`     | array  | optional (v3). Workout templates.                                     |
+| `workouts`      | array  | optional (v3). Finished workouts, every set.                          |
 
 Unknown keys are ignored. All dates are ISO `yyyy-MM-dd`. Enums are their exact upper-case names.
 
@@ -45,7 +51,7 @@ Unknown keys are ignored. All dates are ISO `yyyy-MM-dd`. Enums are their exact 
 | `value`      | number | kg / kcal / g / steps / hours; `WORKOUT` is `1.0`                           |
 | `importedAt` | long   | epoch millis, default 0                                                     |
 
-`FOOD_LOG` is never stored here: food-diary totals are computed from `foodLog`.
+`FOOD_LOG` and `WORKOUT_LOG` are never stored here: they are computed from `foodLog` and `workouts`.
 
 Source priority when several exist for one day+metric: typed (`entries`) > food diary > `MFP` > `HEALTH_CONNECT`/`STRONG_CSV` > `MIGRATED`.
 For MFP history use `source: "MFP"`; for anything else (Takeout steps etc.) use `"MIGRATED"` so it only fills gaps.
@@ -98,3 +104,22 @@ Nutrients are the **entry totals** (already multiplied by `servings`) as they we
   ]
 }
 ```
+
+## Workouts (v3)
+
+`exercises[]`: `name` (required, unique), `type` (`BARBELL`, `DUMBBELL`, `MACHINE`, `WEIGHTED_BODYWEIGHT`,
+`ASSISTED_BODYWEIGHT`, `REPS_ONLY`, `CARDIO`, `DURATION`), `bodyPart` (`CHEST`, `BACK`, `SHOULDERS`, `BICEPS`,
+`TRICEPS`, `FOREARMS`, `LEGS`, `CORE`, `NECK`, `FULL_BODY`, `CARDIO`, `OTHER`), `restSec` (default rest, optional),
+`note`, `archived`, `createdAt`, `source` (`USER`, `STRONG_IMPORT`).
+
+`templates[]`: `name`, `folder` (folder name, optional), `note`, `exercises[]`.
+
+`workouts[]`: `name`, `startedAt`, `endedAt` (epoch millis; the date is derived in the device time zone),
+`note`, `source`, `exercises[]`. Only finished workouts are written.
+
+Exercise entries (`exercises[]` inside templates and workouts): `exercise` (exercise name), `supersetGroup`
+(exercises sharing a number form a superset), `note`, `sets[]`.
+
+Sets: `type` (`NORMAL`, `WARMUP`, `DROP`, `FAILURE`), `weightKg`, `reps`, `durationSec`, `distanceM`,
+`rpe` (workouts only), `restSec` (rest after the set), `completed` (default true), `completedAt`.
+Only completed `NORMAL`/`FAILURE` sets count toward records and the Lifts graph.

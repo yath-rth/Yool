@@ -23,6 +23,9 @@ enum class Source(val priority: Int) {
     /** Totals of the in-app food diary. Never stored in imported_value; derived from food_log_entry. */
     FOOD_LOG(1),
 
+    /** Finished workouts in the in-app workout log. Never stored in imported_value; derived from workout. */
+    WORKOUT_LOG(1),
+
     /** MyFitnessPal — live via Health Connect (dataOrigin com.myfitnesspal.android) or migrated MFP history. */
     MFP(2),
 
@@ -58,3 +61,28 @@ enum class TargetMetric(val label: String, val unit: String) {
 
 /** Preset binge trigger tags; users can also type a custom one. */
 val DefaultBingeTriggers = listOf("Stress", "Social", "Boredom", "Tired")
+
+/** How an exercise is logged; decides which set fields are shown. */
+enum class ExerciseType(val label: String, val usesWeight: Boolean, val usesReps: Boolean, val usesDuration: Boolean, val usesDistance: Boolean) {
+    BARBELL("Barbell", true, true, false, false),
+    DUMBBELL("Dumbbell", true, true, false, false),
+    MACHINE("Machine / Cable", true, true, false, false),
+    WEIGHTED_BODYWEIGHT("Weighted bodyweight", true, true, false, false),
+    /** Weight is the assistance (subtracted). */
+    ASSISTED_BODYWEIGHT("Assisted bodyweight", true, true, false, false),
+    REPS_ONLY("Reps only", false, true, false, false),
+    CARDIO("Cardio", false, false, true, true),
+    DURATION("Duration", false, false, true, false),
+}
+
+enum class BodyPart(val label: String) {
+    CHEST("Chest"), BACK("Back"), SHOULDERS("Shoulders"), BICEPS("Biceps"), TRICEPS("Triceps"),
+    FOREARMS("Forearms"), LEGS("Legs"), CORE("Core"), NECK("Neck"), FULL_BODY("Full body"), CARDIO("Cardio"), OTHER("Other"),
+}
+
+/** Strong set types. Only NORMAL and FAILURE count towards records and best sets. */
+enum class SetType(val short: String, val label: String) {
+    NORMAL("", "Normal"), WARMUP("W", "Warm-up"), DROP("D", "Drop set"), FAILURE("F", "Failure"),
+}
+
+enum class WorkoutSource { USER, STRONG_IMPORT }

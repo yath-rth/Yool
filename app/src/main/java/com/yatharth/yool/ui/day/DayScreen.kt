@@ -78,6 +78,10 @@ fun DayScreen(
     onBack: (() -> Unit)? = null,
     /** Opens the food diary for a date (wired by feat/food-diary into the Nutrition card). */
     onOpenFood: (LocalDate) -> Unit = {},
+    /** Starts an empty workout (or resumes the active one) and opens it. Wired by feat/graphs-insights. */
+    onStartWorkout: () -> Unit = {},
+    /** Opens a finished workout's detail. */
+    onOpenWorkout: (workoutId: Long) -> Unit = {},
 ) {
     val repo = LocalContext.current.appContainer.repository
     val vm: DayViewModel = viewModel(key = "day-$date", factory = viewModelFactory { initializer { DayViewModel(repo, date) } })
