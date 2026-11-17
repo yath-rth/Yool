@@ -86,3 +86,25 @@ class StatsTest {
         assertEquals(mon, out[0].date)
     }
 }
+
+class RangesTest {
+    private val today = LocalDate.of(2026, 11, 17)
+
+    @Test fun presetsAreInclusiveWindowsEndingToday() {
+        assertEquals(today.minusDays(6) to today, Ranges.resolve(RangePreset.W1, today))
+        assertEquals(today.minusDays(364) to today, Ranges.resolve(RangePreset.Y1, today))
+    }
+
+    @Test fun allStartsAtEarliestData() {
+        val e = LocalDate.of(2025, 1, 5)
+        assertEquals(e to today, Ranges.resolve(RangePreset.ALL, today, earliest = e))
+        assertEquals(today.minusDays(29) to today, Ranges.resolve(RangePreset.ALL, today))
+    }
+
+    @Test fun customSwapsReversedDates() {
+        val a = LocalDate.of(2026, 1, 1)
+        val b = LocalDate.of(2026, 2, 1)
+        assertEquals(a to b, Ranges.resolve(RangePreset.CUSTOM, today, customFrom = b, customTo = a))
+        assertEquals(today.minusDays(29) to today, Ranges.resolve(RangePreset.CUSTOM, today))
+    }
+}
