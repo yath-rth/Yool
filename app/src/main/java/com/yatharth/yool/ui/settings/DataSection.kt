@@ -60,6 +60,7 @@ import java.time.ZoneOffset
 fun DataSection() {
     val context = LocalContext.current
     val repo = context.appContainer.repository
+    val foodRepo = context.appContainer.foodRepository
     val scope = rememberCoroutineScope()
 
     var range by remember { mutableStateOf(ExportRange.WEEK) }
@@ -102,12 +103,16 @@ fun DataSection() {
         if (uri != null) scope.launch {
             busy = true
             runCatching {
-                val data = BackupData(repo.allEntries(), repo.allImported(), repo.allLifts(), repo.allTargets())
+                val data = BackupData(
+                    repo.allEntries(), repo.allImported(), repo.allLifts(), repo.allTargets(),
+                    foodRepo.allFoods(), foodRepo.allLogEntries(),
+                    foodRepo.allSavedMeals().map { m -> m.meal.name to m.items.map { it.item.foodId to it.item.servings } },
+                )
                 val text = withContext(Dispatchers.Default) { Backup.encode(data) }
                 withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { it.write(text.toByteArray()) } }
                 data
             }.onSuccess {
-                say("Backed up ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets.")
+                say("Backed up ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries.")
             }.onFailure { say("Backup failed: ${it.message}", true) }
             busy = false
         }
@@ -120,9 +125,10 @@ fun DataSection() {
                 val text = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) } }
                 val data = withContext(Dispatchers.Default) { Backup.decode(text) }
                 repo.restore(data.entries, data.imported, data.lifts, data.targets, overwriteManual = false)
+                foodRepo.restore(data.foods, data.foodLog, data.savedMeals)
                 data
             }.onSuccess {
-                say("Restored (merged): ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets. Typed entries were kept.")
+                say("Restored (merged): ${it.entries.size} entries, ${it.imported.size} imported values, ${it.lifts.size} lifts, ${it.targets.size} targets, ${it.foods.size} foods, ${it.foodLog.size} food log entries. Typed entries and already-logged days were kept.")
             }.onFailure {
                 say(if (it is BackupException) it.message ?: "Invalid backup." else "Restore failed: ${it.message}", true)
             }

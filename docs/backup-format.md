@@ -1,4 +1,4 @@
-# yool backup format (version 1)
+# yool backup format (version 2)
 
 A single UTF-8 JSON document. Used by Settings > Data > Backup / Restore and for one-off
 history migration (e.g. MyFitnessPal / Google Takeout converted to this schema).
@@ -9,17 +9,23 @@ Restore calls `repository.restore(..., overwriteManual = false)`:
 - `imported`: upserted by (`date`, `metric`, `source`).
 - `lifts`: upserted by (`date`, `exercise`).
 - `targets`: inserted unless a target with the same (`metric`, `effectiveFrom`) already exists.
+- `foods`: matched by (`name`, `servingLabel`); new ones inserted. File `id`s are remapped to local ids.
+- `foodLog`: only inserted for dates that have **no** food logged yet (restoring twice never duplicates).
+- `savedMeals`: inserted unless a saved meal with the same `name` exists.
 
 ## Top level
 
 | field           | type   | notes                                                                 |
 |-----------------|--------|-----------------------------------------------------------------------|
-| `formatVersion` | int    | `1`. Files with a higher version are rejected.                        |
+| `formatVersion` | int    | `2` (v1 files still restore). Higher versions are rejected.           |
 | `exportedAt`    | string | ISO-8601 instant, informational.                                      |
 | `entries`       | array  | optional (default empty). Things the user typed. Objects below.       |
 | `imported`      | array  | optional. Externally sourced values.                                  |
 | `lifts`         | array  | optional. Best set per exercise per day.                              |
 | `targets`       | array  | optional. Versioned targets.                                          |
+| `foods`         | array  | optional (v2). Food library.                                          |
+| `foodLog`       | array  | optional (v2). Food diary entries.                                    |
+| `savedMeals`    | array  | optional (v2). Saved meals.                                           |
 
 Unknown keys are ignored. All dates are ISO `yyyy-MM-dd`. Enums are their exact upper-case names.
 
@@ -39,7 +45,9 @@ Unknown keys are ignored. All dates are ISO `yyyy-MM-dd`. Enums are their exact 
 | `value`      | number | kg / kcal / g / steps / hours; `WORKOUT` is `1.0`                           |
 | `importedAt` | long   | epoch millis, default 0                                                     |
 
-Source priority when several exist for one day+metric: typed (`entries`) > `MFP` > `HEALTH_CONNECT`/`STRONG_CSV` > `MIGRATED`.
+`FOOD_LOG` is never stored here: food-diary totals are computed from `foodLog`.
+
+Source priority when several exist for one day+metric: typed (`entries`) > food diary > `MFP` > `HEALTH_CONNECT`/`STRONG_CSV` > `MIGRATED`.
 For MFP history use `source: "MFP"`; for anything else (Takeout steps etc.) use `"MIGRATED"` so it only fills gaps.
 
 ## `lifts[]` (LiftBestSet)
@@ -50,6 +58,23 @@ For MFP history use `source: "MFP"`; for anything else (Takeout steps etc.) use 
 
 `metric` (`WEIGHT_GOAL`, `CALORIES`, `PROTEIN`, `STEPS`, `SLEEP_HOURS`), `value` (double),
 `effectiveFrom` (date), `targetDate` (date, optional, only for `WEIGHT_GOAL`).
+
+## `foods[]` (Food) — v2
+
+Nutrients are **per serving**. `id` (long, required) is only a key that `foodLog`/`savedMeals` refer to within the file.
+`name`, `servingLabel` (e.g. `"100 g"`, `"1 cup"`), `kcal` required; optional `brand`, `servingGrams` (grams in one serving,
+enables logging by weight), `proteinG`, `carbsG`, `fatG`, `fiberG` (default 0), `archived` (bool), `createdAt` (epoch millis),
+`source` (`USER` | `MFP_IMPORT`, default `USER`).
+
+## `foodLog[]` (FoodLogEntry) — v2
+
+`date`, `meal` (`BREAKFAST`, `LUNCH`, `DINNER`, `SNACKS`), `name`, `kcal` required; optional `foodId` (a `foods[].id`),
+`servingLabel`, `servings` (default 1), `proteinG`, `carbsG`, `fatG`, `fiberG`, `createdAt` (orders entries within a meal).
+Nutrients are the **entry totals** (already multiplied by `servings`) as they were when logged.
+
+## `savedMeals[]` — v2
+
+`name`, `items: [{ "foodId": <foods[].id>, "servings": <double> }]`.
 
 ## Example
 
