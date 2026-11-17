@@ -71,6 +71,7 @@ data class LineSeries(
 )
 
 private val axisFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+private val axisFmtLong = DateTimeFormatter.ofPattern("MMM yy", Locale.getDefault())
 
 private fun niceStep(raw: Double): Double {
     if (raw <= 0.0) return 1.0
@@ -129,7 +130,7 @@ fun TimeChart(
         val leftPad = (tickLayouts.maxOfOrNull { it.size.width } ?: 0) + 8.dp.toPx()
         val bottomPad = 18.dp.toPx()
         val topPad = 6.dp.toPx()
-        val rightPad = 4.dp.toPx()
+        val rightPad = 8.dp.toPx()
         val plotL = leftPad
         val plotR = size.width - rightPad
         val plotT = topPad
@@ -153,7 +154,7 @@ fun TimeChart(
         val fractions = listOf(0f, 1f / 3f, 2f / 3f, 1f)
         fractions.forEachIndexed { i, f ->
             val date = from.plusDays(((totalDays - 1) * f).toLong())
-            val tl = measurer.measure(date.format(axisFmt), labelStyle)
+            val tl = measurer.measure(date.format(if (totalDays > 300) axisFmtLong else axisFmt), labelStyle)
             val cx = plotL + (xFrac(date) + 0.5f / totalDays) * plotW
             val x = when (i) {
                 0 -> plotL
@@ -163,7 +164,7 @@ fun TimeChart(
             drawText(tl, topLeft = Offset(x, plotB + 4.dp.toPx()))
         }
 
-        clipRect(plotL - 1f, plotT - 4.dp.toPx(), plotR + 1f, plotB + 1f) {
+        clipRect(plotL - 6.dp.toPx(), plotT - 6.dp.toPx(), plotR + 6.dp.toPx(), plotB + 1f) {
             // bars
             bars.forEach { b ->
                 val slot = plotW / totalDays * barSpanDays

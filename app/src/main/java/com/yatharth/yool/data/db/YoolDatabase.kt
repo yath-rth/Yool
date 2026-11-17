@@ -56,7 +56,8 @@ interface LiftDao {
     @Query("SELECT * FROM lift_best_set WHERE date BETWEEN :from AND :to ORDER BY date")
     fun observeRange(from: LocalDate, to: LocalDate): Flow<List<LiftBestSet>>
 
-    @Query("SELECT DISTINCT exercise FROM lift_best_set ORDER BY exercise")
+    /** Most frequently trained first. */
+    @Query("SELECT exercise FROM lift_best_set GROUP BY exercise ORDER BY COUNT(*) DESC, exercise")
     fun observeExercises(): Flow<List<String>>
 
     @Query("SELECT * FROM lift_best_set ORDER BY date")
