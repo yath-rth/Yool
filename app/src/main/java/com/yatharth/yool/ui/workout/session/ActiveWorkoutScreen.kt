@@ -1,5 +1,7 @@
 package com.yatharth.yool.ui.workout
 
+import com.yatharth.yool.ui.components.TxDatePickerDialog
+import com.yatharth.yool.ui.components.txTimePickerColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,16 +11,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.MoreVert
+import com.yatharth.yool.ui.theme.ItemsBg
+import com.yatharth.yool.ui.theme.SecondaryBg
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,10 +50,16 @@ import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
+import com.yatharth.yool.ui.components.TxActionSheet
+import com.yatharth.yool.ui.components.TxConfirmDialog
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDialogButtons
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxPromptDialog
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.components.TxProgress
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
-import com.yatharth.yool.ui.theme.Green
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.workout.session.ActiveWorkoutViewModel
 import com.yatharth.yool.ui.workout.session.ExerciseCard
@@ -108,12 +116,21 @@ fun ActiveWorkoutScreen(workoutId: Long?, contentPadding: PaddingValues, onClose
     var adding by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
     var editTimes by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var noting by remember { mutableStateOf(false) }
 
     val w = workout
     if (w == null) {
         Column(Modifier.fillMaxSize().padding(contentPadding)) { EmptyState("Loading", "Opening workout…") }
     } else {
         Column(Modifier.fillMaxSize().padding(contentPadding)) {
+            Header(
+                w, editing,
+                onMenu = { menu = true },
+                onFinish = { if (editing) onClose() else vm.requestFinish() },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             if (!editing && rest != null) {
                 RestBar(rest!!.label, { rest!!.remainingSec(it) }, { rest!!.progress(it) }, ctx)
             }
@@ -122,7 +139,6 @@ fun ActiveWorkoutScreen(workoutId: Long?, contentPadding: PaddingValues, onClose
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "header") { Header(vm, w, editing, onEditTimes = { editTimes = true }, onFinish = { if (editing) onClose() else vm.requestFinish() }) }
                 val list = w.ordered
                 items(list, key = { it.entry.id }) { ex ->
                     val i = list.indexOf(ex)
@@ -132,11 +148,27 @@ fun ActiveWorkoutScreen(workoutId: Long?, contentPadding: PaddingValues, onClose
                         settings = settings, editing = editing, onOpenExercise = onOpenExercise,
                     )
                 }
-                item(key = "add") { TxButton("+ Add exercises", onClick = { adding = true }, modifier = Modifier.fillMaxWidth()) }
-                if (!editing) item(key = "discard") {
-                    TxButton("Discard workout", onClick = { confirmDiscard = true }, modifier = Modifier.fillMaxWidth(), textColor = Coral)
-                }
+                item(key = "add") { TxButton("Add exercises", onClick = { adding = true }, modifier = Modifier.fillMaxWidth(), icon = Icons.Outlined.Add) }
             }
+        }
+    }
+
+    if (menu && w != null) {
+        val actions = buildList<Pair<String, () -> Unit>> {
+            add("Rename workout" to { menu = false; renaming = true })
+            add((if (w.workout.note.isNullOrEmpty()) "Add note" else "Edit note") to { menu = false; noting = true })
+            if (editing) add("Edit time" to { menu = false; editTimes = true })
+            if (!editing) add("Discard workout" to { menu = false; confirmDiscard = true })
+        }
+        TxActionSheet(w.workout.name, { menu = false }, actions, destructive = setOf("Discard workout"))
+    }
+    if (renaming && w != null) {
+        TxPromptDialog("Rename workout", "Workout", w.workout.name, "Save", { renaming = false; vm.setName(it) }, { renaming = false })
+    }
+    if (noting && w != null) {
+        TxDialog("Workout note", { noting = false }) {
+            WorkoutNoteField(w.workout.note ?: "", "Note") { vm.setNote(it) }
+            TxButton("Done", { noting = false }, Modifier.fillMaxWidth())
         }
     }
 
@@ -148,85 +180,60 @@ fun ActiveWorkoutScreen(workoutId: Long?, contentPadding: PaddingValues, onClose
     }
 
     if (confirmDiscard) {
-        AlertDialog(
-            onDismissRequest = { confirmDiscard = false },
-            title = { Text("Discard workout?") },
-            text = { Text("Everything logged in this workout will be deleted.") },
-            confirmButton = { TextButton({ confirmDiscard = false; vm.discard(onClose) }) { Text("Discard", color = Coral) } },
-            dismissButton = { TextButton({ confirmDiscard = false }) { Text("Keep", color = Ink) } },
+        TxConfirmDialog(
+            "Discard workout?", "Everything logged in this workout will be deleted.", "Discard",
+            onConfirm = { confirmDiscard = false; vm.discard(onClose) },
+            onDismiss = { confirmDiscard = false },
+            dismissLabel = "Keep",
         )
     }
 
     if (editTimes && w != null) EditTimesDialog(w, onDismiss = { editTimes = false }) { start, end -> editTimes = false; vm.setTimes(start, end) }
 
     notice?.let {
-        AlertDialog(
-            onDismissRequest = { vm.notice.value = null },
-            text = { Text(it) },
-            confirmButton = { TextButton({ vm.notice.value = null }) { Text("OK", color = Ink) } },
-        )
+        TxDialog(null, { vm.notice.value = null }) {
+            Text(it, style = MaterialTheme.typography.bodyMedium)
+            TxButton("OK", { vm.notice.value = null }, Modifier.fillMaxWidth())
+        }
     }
 
     when (val s = stage) {
         null -> {}
-        FinishStage.ChooseIncomplete -> AlertDialog(
-            onDismissRequest = vm::dismissFinish,
-            title = { Text("Unfinished sets") },
-            text = { Text("Some sets aren't checked off yet.") },
-            confirmButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    TextButton({ vm.finish(dropIncomplete = false) }) { Text("Complete all", color = Ink) }
-                    TextButton({ vm.finish(dropIncomplete = true) }) { Text("Discard unchecked", color = Coral) }
-                    TextButton(vm::dismissFinish) { Text("Cancel", color = Ink) }
-                }
-            },
-        )
-        is FinishStage.Summary -> AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Workout complete") },
-            text = { SummaryBody(s.summary) },
-            confirmButton = {
-                TextButton({
+        FinishStage.ChooseIncomplete -> TxDialog("Unfinished sets", vm::dismissFinish) {
+            Text("Some sets aren't checked off yet.", style = MaterialTheme.typography.bodyMedium)
+            TxButton("Complete all", { vm.finish(dropIncomplete = false) }, Modifier.fillMaxWidth(), bg = Ink, textColor = ItemsBg)
+            TxButton("Discard unchecked", { vm.finish(dropIncomplete = true) }, Modifier.fillMaxWidth(), textColor = Coral)
+            TxButton("Cancel", vm::dismissFinish, Modifier.fillMaxWidth())
+        }
+        is FinishStage.Summary -> TxDialog("Workout complete", {}) {
+            SummaryBody(s.summary)
+            TxButton(
+                "Done",
+                {
                     val t = s.templateId
                     if (t != null) vm.askUpdateTemplate(t, s.templateName ?: "template") else onClose()
-                }) { Text("Done", color = Ink) }
-            },
-        )
-        is FinishStage.UpdateTemplate -> AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Update template '${s.templateName}'?") },
-            text = { Text("You changed the exercises or sets compared with the template.") },
-            confirmButton = { TextButton({ vm.updateTemplate(s.templateId, onClose) }) { Text("Update", color = Ink) } },
-            dismissButton = { TextButton(onClose) { Text("Keep as is", color = Ink) } },
-        )
+                },
+                Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg,
+            )
+        }
+        is FinishStage.UpdateTemplate -> TxDialog("Update template '${s.templateName}'?", {}) {
+            Text("You changed the exercises or sets compared with the template.", style = MaterialTheme.typography.bodyMedium)
+            TxDialogButtons("Update", { vm.updateTemplate(s.templateId, onClose) }, onClose, dismissLabel = "Keep as is")
+        }
     }
 }
 
 @Composable
-private fun Header(vm: ActiveWorkoutViewModel, w: WorkoutFull, editing: Boolean, onEditTimes: () -> Unit, onFinish: () -> Unit) {
-    var name by remember(w.workout.id) { mutableStateOf(w.workout.name) }
-    LaunchedEffect(name) {
-        if (name == w.workout.name || name.isBlank()) return@LaunchedEffect
-        delay(800)
-        vm.setName(name)
+private fun Header(w: WorkoutFull, editing: Boolean, onMenu: () -> Unit, onFinish: () -> Unit, modifier: Modifier = Modifier) {
+    val now by rememberNow()
+    val subtitle = if (editing) {
+        "Duration " + WorkoutMath.formatDuration((w.workout.endedAt ?: now) - w.workout.startedAt)
+    } else {
+        "Elapsed " + SessionMath.elapsedClock(now - w.workout.startedAt)
     }
-    ShadowCard {
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TxTextField(name, { name = it }, "Workout", modifier = Modifier.weight(1f), maxLength = 60)
-            TxButton(if (editing) "Save" else "Finish", onClick = onFinish, bg = Green, textColor = androidx.compose.ui.graphics.Color.White, fill = false)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (editing) {
-                val end = w.workout.endedAt
-                val ms = (end ?: System.currentTimeMillis()) - w.workout.startedAt
-                StatValue("Duration", WorkoutMath.formatDuration(ms), Modifier.weight(1f))
-                TxButton("Edit time", onClick = onEditTimes, fill = false)
-            } else {
-                val now by rememberNow()
-                StatValue("Elapsed", SessionMath.elapsedClock(now - w.workout.startedAt), Modifier.weight(1f), big = true)
-            }
-        }
-        WorkoutNoteField(w.workout.note ?: "", "Note") { vm.setNote(it) }
+    TxTopBar(w.workout.name, modifier, subtitle = subtitle) {
+        TxIconButton(Icons.Outlined.MoreVert, "Workout menu", onMenu)
+        TxButton(if (editing) "Save" else "Finish", onClick = onFinish, bg = Coral, textColor = ItemsBg, fill = false)
     }
 }
 
@@ -241,7 +248,7 @@ private fun RestBar(label: String, remaining: (Long) -> Int, progress: (Long) ->
             }
             TxButton("−15", { RestTimer.adjust(ctx, -15) }, fill = false)
             TxButton("+15", { RestTimer.adjust(ctx, 15) }, fill = false)
-            TxButton("Skip", { RestTimer.stop(ctx) }, bg = Coral, textColor = androidx.compose.ui.graphics.Color.White, fill = false)
+            TxButton("Skip", { RestTimer.stop(ctx) }, textColor = Coral, fill = false)
         }
         TxProgress(progress(now))
     }
@@ -275,53 +282,33 @@ private fun EditTimesDialog(w: WorkoutFull, onDismiss: () -> Unit, onSave: (star
     var picking by remember { mutableStateOf<String?>(null) }
     val startMs = day.atTime(time).atZone(zone).toInstant().toEpochMilli()
     val mins = minutes.trim().toLongOrNull()?.takeIf { it > 0 }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit time") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Started")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TxChip(Fmt.date(day), selected = true, onClick = { picking = "date" })
-                    TxChip(Fmt.time(time), selected = true, onClick = { picking = "time" })
-                }
-                TxTextField(minutes, { minutes = it }, "Duration", unit = "min", numeric = true)
-            }
-        },
-        confirmButton = {
-            TextButton({ if (mins != null) onSave(startMs, startMs + mins * 60_000) }, enabled = mins != null) {
-                Text("Save", color = Ink)
-            }
-        },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel", color = Ink) } },
-    )
+    TxDialog("Edit time", onDismiss) {
+        SectionLabel("Started")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TxChip(Fmt.date(day), selected = true, onClick = { picking = "date" })
+            TxChip(Fmt.time(time), selected = true, onClick = { picking = "time" })
+        }
+        TxTextField(minutes, { minutes = it }, "Duration", unit = "min", numeric = true)
+        TxDialogButtons("Save", { if (mins != null) onSave(startMs, startMs + mins * 60_000) }, onDismiss, confirmEnabled = mins != null)
+    }
     when (picking) {
         "date" -> {
-            val state = rememberDatePickerState(initialSelectedDateMillis = day.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli())
-            DatePickerDialog(
-                onDismissRequest = { picking = null },
-                confirmButton = {
-                    TextButton(onClick = {
-                        state.selectedDateMillis?.let { day = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
-                        picking = null
-                    }) { Text("OK", color = Ink) }
-                },
-                dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel", color = Ink) } },
-            ) { DatePicker(state) }
+            TxDatePickerDialog(
+                title = "Workout date",
+                initial = day,
+                onConfirm = { day = it; picking = null },
+                onDismiss = { picking = null },
+            )
         }
         "time" -> {
             val state = rememberTimePickerState(initialHour = time.hour, initialMinute = time.minute, is24Hour = false)
-            AlertDialog(
-                onDismissRequest = { picking = null },
-                text = { TimePicker(state) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        time = LocalTime.of(state.hour, state.minute)
-                        picking = null
-                    }) { Text("OK", color = Ink) }
-                },
-                dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel", color = Ink) } },
-            )
+            TxDialog("Start time", { picking = null }) {
+                TimePicker(
+                    state,
+                    colors = txTimePickerColors(),
+                )
+                TxDialogButtons("OK", { time = LocalTime.of(state.hour, state.minute); picking = null }, { picking = null })
+            }
         }
     }
 }

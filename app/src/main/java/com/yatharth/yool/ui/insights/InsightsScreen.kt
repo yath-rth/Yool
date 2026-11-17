@@ -36,9 +36,9 @@ import com.yatharth.yool.domain.TrendVerdict
 import com.yatharth.yool.domain.WeightTrend
 import com.yatharth.yool.domain.WorkoutVsRest
 import com.yatharth.yool.ui.Fmt
-import com.yatharth.yool.ui.components.ScreenTitle
-import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxCollapsible
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.graphs.HBarRow
 import com.yatharth.yool.ui.graphs.RangeSelection
 import com.yatharth.yool.ui.graphs.RangeSelector
@@ -111,7 +111,7 @@ fun InsightsScreen(contentPadding: PaddingValues, header: @Composable () -> Unit
             ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ScreenTitle("Insights", subtitle = "Patterns in your own data")
+        TxTopBar("Progress")
         header()
         RangeSelector(selection, ui?.let { it.from to it.to }, onChange = { vm.selection.value = it })
         val u = ui
@@ -137,13 +137,10 @@ fun InsightsScreen(contentPadding: PaddingValues, header: @Composable () -> Unit
 
 private const val NOT_ENOUGH = "Not enough data yet"
 
+/** Title + one headline sentence by default; the supporting numbers and bars expand on tap. */
 @Composable
 private fun InsightCard(title: String, headline: String, content: @Composable () -> Unit) {
-    ShadowCard {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelMedium)
-        Text(headline, style = MaterialTheme.typography.bodyLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
-        content()
-    }
+    TxCollapsible(title, summary = headline) { content() }
 }
 
 /** One group as a bar scaled to [max], with its average and sample size. */
@@ -176,7 +173,7 @@ private fun SleepCard(groups: List<GroupAvg>) {
     else "Your mood is best the day after ${best.label.lowercase()} of sleep (avg ${Fmt.one(best.avg)} of 5)."
     InsightCard("Sleep vs next-day mood", headline) {
         groups.forEach { GroupRow(it, 5.0, MetricColors.Sleep) }
-        Text("Average mood tomorrow, grouped by last night's sleep. n is the number of nights.", style = MaterialTheme.typography.labelSmall)
+        Text("Mood tomorrow by last night's sleep. n = nights.", style = MaterialTheme.typography.labelSmall)
     }
 }
 

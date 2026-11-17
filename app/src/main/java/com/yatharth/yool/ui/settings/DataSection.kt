@@ -1,5 +1,6 @@
 package com.yatharth.yool.ui.settings
 
+import com.yatharth.yool.ui.components.TxDateRangePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -15,19 +16,16 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -38,6 +36,7 @@ import com.yatharth.yool.io.backup.BackupData
 import com.yatharth.yool.io.backup.BackupException
 import com.yatharth.yool.io.export.ExportBuilder
 import com.yatharth.yool.io.export.ExportRange
+import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
@@ -45,6 +44,7 @@ import com.yatharth.yool.ui.components.TxSegmented
 import com.yatharth.yool.ui.importer.ImportActivity
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
+import com.yatharth.yool.ui.theme.ItemsBg
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -164,34 +164,38 @@ fun DataSection() {
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ShadowCard {
-            SectionLabel("Import from Strong")
-            Text(
-                "Export your workouts from Strong as CSV, then share the file to yool or pick it here. Safe to repeat.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            TxButton("Import Strong CSV", onClick = { pickStrong.launch(arrayOf("*/*")) }, icon = Icons.Default.FileUpload, modifier = Modifier.fillMaxWidth())
+            SectionLabel("Backup & restore")
+            Text("Save everything as one JSON file. Restore merges it in and keeps days you typed.", style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                TxButton(
+                    "Backup", enabled = !busy, icon = Icons.Default.FileDownload, modifier = Modifier.weight(1f),
+                    onClick = { saveBackup.launch("yool-backup-${LocalDate.now()}.json") },
+                )
+                TxButton(
+                    "Restore", enabled = !busy, icon = Icons.Default.Restore, modifier = Modifier.weight(1f),
+                    onClick = { restore.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
+                )
+            }
         }
 
         ShadowCard {
-            SectionLabel("Export for AI / other tools")
-            Text(
-                "A zip with daily.csv, lifts.csv and a markdown summary you can hand to an AI coach.",
-                style = MaterialTheme.typography.bodySmall,
-            )
+            SectionLabel("Export")
+            Text("A zip with daily.csv, lifts.csv and a summary for AI or other tools.", style = MaterialTheme.typography.bodySmall)
             TxSegmented(
                 ExportRange.entries, range,
                 { range = it; if (it == ExportRange.CUSTOM) showPicker = true },
                 label = { it.label },
             )
             if (range == ExportRange.CUSTOM) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        custom?.let { "${it.first} to ${it.second}" } ?: "No range chosen",
+                        custom?.let { "${Fmt.date(it.first)} to ${Fmt.date(it.second)}" } ?: "No range chosen",
                         style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
                     )
-                    TextButton(onClick = { showPicker = true }) { Text("Change", color = Ink) }
+                    TxButton("Change", onClick = { showPicker = true }, fill = false)
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -218,21 +222,9 @@ fun DataSection() {
         }
 
         ShadowCard {
-            SectionLabel("Backup & restore")
-            Text(
-                "Backup saves everything as one JSON file. Restore merges it in and never overwrites days you typed.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                TxButton(
-                    "Backup", enabled = !busy, icon = Icons.Default.FileDownload, modifier = Modifier.weight(1f),
-                    onClick = { saveBackup.launch("yool-backup-${LocalDate.now()}.json") },
-                )
-                TxButton(
-                    "Restore", enabled = !busy, icon = Icons.Default.Restore, modifier = Modifier.weight(1f),
-                    onClick = { restore.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
-                )
-            }
+            SectionLabel("Import from Strong")
+            Text("Export your workouts from Strong as CSV, then pick the file here. Safe to repeat.", style = MaterialTheme.typography.bodySmall)
+            TxButton("Import Strong CSV", onClick = { pickStrong.launch(arrayOf("*/*")) }, icon = Icons.Default.FileUpload, modifier = Modifier.fillMaxWidth())
         }
 
         status?.let {
@@ -241,26 +233,14 @@ fun DataSection() {
     }
 
     if (showPicker) {
-        val state = rememberDateRangePickerState()
-        DatePickerDialog(
-            onDismissRequest = { showPicker = false; if (custom == null) range = ExportRange.WEEK },
-            confirmButton = {
-                TextButton(
-                    enabled = state.selectedStartDateMillis != null && state.selectedEndDateMillis != null,
-                    onClick = {
-                        val s = state.selectedStartDateMillis
-                        val e = state.selectedEndDateMillis
-                        if (s != null && e != null) custom = millisToDate(s) to millisToDate(e)
-                        showPicker = false
-                    },
-                ) { Text("OK", color = Ink) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPicker = false; if (custom == null) range = ExportRange.WEEK }) { Text("Cancel", color = Ink) }
-            },
-        ) {
-            DateRangePicker(state, modifier = Modifier.weight(1f, fill = false))
-        }
+        TxDateRangePickerDialog(
+            title = "Export range",
+            initialFrom = custom?.first,
+            initialTo = custom?.second,
+            confirmLabel = "OK",
+            onConfirm = { s, e -> custom = s to e; showPicker = false },
+            onDismiss = { showPicker = false; if (custom == null) range = ExportRange.WEEK },
+        )
     }
 }
 

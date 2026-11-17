@@ -44,7 +44,14 @@ import com.yatharth.yool.data.db.Exercise
 import com.yatharth.yool.data.model.BodyPart
 import com.yatharth.yool.data.model.ExerciseType
 import com.yatharth.yool.ui.components.EmptyState
-import com.yatharth.yool.ui.components.ScreenTitle
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.ui.graphics.compositeOver
+import com.yatharth.yool.ui.components.ShadowCard
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDialogButtons
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
@@ -80,37 +87,36 @@ fun ExercisePickerDialog(
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         Column(Modifier.fillMaxSize().background(Background).systemBarsPadding().imePadding().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ScreenTitle(title, Modifier.weight(1f))
-                Icon(Icons.Outlined.Close, "Close", Modifier.clickable(onClick = onDismiss).padding(6.dp))
+            TxTopBar(title) {
+                TxIconButton(Icons.Outlined.Add, "New exercise", { creating = true })
+                TxIconButton(Icons.Outlined.Close, "Close", onDismiss)
             }
             TxTextField(query, { query = it }, "Search", Modifier.fillMaxWidth(), placeholder = "Exercise name")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 TxChip("All", bodyPart == null, { bodyPart = null })
                 BodyPart.entries.forEach { bp -> TxChip(bp.label, bodyPart == bp, { bodyPart = if (bodyPart == bp) null else bp }) }
             }
-            TxButton("+ New exercise", { creating = true }, Modifier.fillMaxWidth())
-            if (visible.isEmpty()) EmptyState("No matches", "Create it with + NEW EXERCISE.")
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (visible.isEmpty()) EmptyState("No matches", "Tap + to create it.")
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(visible, key = { it.id }) { e ->
                     val isSel = e.id in selected
-                    val shape = RoundedCornerShape(4.dp)
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .background(if (isSel) Coral.copy(alpha = 0.12f) else ItemsBg, shape)
-                            .border(if (isSel) 2.dp else 1.5.dp, if (isSel) Coral else Ink, shape)
-                            .clickable {
-                                if (!multiple) onPicked(listOf(e.id))
-                                else if (isSel) selected.remove(e.id) else selected.add(e.id)
-                            }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    ShadowCard(
+                        Modifier.fillMaxWidth(),
+                        bg = if (isSel) Coral.copy(alpha = 0.12f).compositeOver(ItemsBg) else ItemsBg,
+                        shadow = 2.dp,
+                        contentPadding = 12.dp,
+                        onClick = {
+                            if (!multiple) onPicked(listOf(e.id))
+                            else if (isSel) selected.remove(e.id) else selected.add(e.id)
+                        },
                     ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(e.name, style = MaterialTheme.typography.titleSmall)
-                            Text("${e.bodyPart.label} · ${timesLabel(counts[e.id] ?: 0)}", style = MaterialTheme.typography.labelSmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(e.name, style = MaterialTheme.typography.titleSmall)
+                                Text("${e.bodyPart.label} · ${timesLabel(counts[e.id] ?: 0)}", style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (isSel) Icon(Icons.Outlined.Check, "Selected", Modifier.size(20.dp), tint = Coral)
                         }
-                        if (isSel) Icon(Icons.Outlined.Check, "Selected", Modifier.size(20.dp), tint = Coral)
                     }
                 }
             }
@@ -156,8 +162,7 @@ private fun QuickExerciseDialog(
     var type by remember { mutableStateOf(ExerciseType.BARBELL) }
     var bodyPart by remember { mutableStateOf(BodyPart.CHEST) }
     var error by remember { mutableStateOf<String?>(null) }
-    TxDialog(onDismiss) {
-        Text("NEW EXERCISE", style = MaterialTheme.typography.labelLarge)
+    TxDialog("New exercise", onDismiss) {
         TxTextField(name, { name = it; error = null }, "Name", Modifier.fillMaxWidth(), maxLength = 60)
         if (error != null) Text(error!!, style = MaterialTheme.typography.labelMedium, color = Coral)
         SectionLabel("Type")
@@ -168,13 +173,11 @@ private fun QuickExerciseDialog(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             BodyPart.entries.forEach { b -> TxChip(b.label, bodyPart == b, { bodyPart = b }) }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TxButton("Cancel", onDismiss, Modifier.weight(1f))
-            TxButton(
-                "Create",
-                { scope { error = onCreate(Exercise(name = name.trim(), type = type, bodyPart = bodyPart)) } },
-                Modifier.weight(1f), bg = Coral, textColor = ItemsBg, enabled = name.isNotBlank(),
-            )
-        }
+        TxDialogButtons(
+            "Create",
+            { scope { error = onCreate(Exercise(name = name.trim(), type = type, bodyPart = bodyPart)) } },
+            onDismiss,
+            confirmEnabled = name.isNotBlank(),
+        )
     }
 }

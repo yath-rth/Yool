@@ -21,6 +21,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -66,7 +77,9 @@ fun ShadowCard(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press by animateDpAsState(if (pressed && onClick != null) 2.dp else 0.dp, tween(50), label = "press")
-    Box(modifier.padding(end = shadow, bottom = shadow)) {
+    // propagateMinConstraints: when the caller fixes the height (e.g. fillMaxHeight in an
+    // IntrinsicSize.Min row) the content stretches with it instead of leaving shadow showing.
+    Box(modifier.padding(end = shadow, bottom = shadow), propagateMinConstraints = true) {
         Box(
             Modifier
                 .matchParentSize()
@@ -122,7 +135,7 @@ fun TxButton(
                 text.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = if (enabled) textColor else textColor.copy(alpha = 0.4f),
+                color = if (enabled) textColor else Ink.copy(alpha = 0.4f),
             )
         }
     }
@@ -138,7 +151,7 @@ fun TxSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
             Modifier
                 .size(width = 48.dp, height = 28.dp)
                 .clip(CardShape)
-                .background(if (checked) Green.copy(alpha = 0.15f) else ItemsBg)
+                .background(if (checked) Green.copy(alpha = 0.15f).compositeOver(ItemsBg) else ItemsBg)
                 .border(2.dp, Ink, CardShape)
                 .clickable { onCheckedChange(!checked) }
                 .padding(4.dp),
@@ -149,7 +162,7 @@ fun TxSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
                     .offset(x = thumb)
                     .size(18.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(if (checked) Green else Ink.copy(alpha = 0.2f))
+                    .background(if (checked) Green else Ink.copy(alpha = 0.2f).compositeOver(ItemsBg))
                     .border(1.5.dp, Ink, RoundedCornerShape(2.dp))
             )
         }
@@ -183,7 +196,7 @@ fun <T> TxSegmented(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .background(if (isSel) selectedColor.copy(alpha = 0.12f) else Color.Transparent)
+                        .background(if (isSel) selectedColor.copy(alpha = 0.12f).compositeOver(ItemsBg) else ItemsBg)
                         .clickable { onSelect(opt) },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -212,7 +225,20 @@ fun TxTextField(
     maxLength: Int? = null,
     placeholder: String = "",
 ) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Keep the whole field (label + box + counter) above the keyboard: when it is focused and the
+    // IME is up, ask the enclosing scroll container to bring it into view.
+    val requester = remember { BringIntoViewRequester() }
+    var focused by remember { mutableStateOf(false) }
+    // Keyed on the live IME height: every animation frame restarts the effect, so the request only
+    // fires once the keyboard has finished rising and the viewport has its final size.
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(focused, imeBottom) {
+        if (focused && imeBottom > 0) {
+            delay(80)
+            requester.bringIntoView()
+        }
+    }
+    Column(modifier.bringIntoViewRequester(requester), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label.uppercase(), style = MaterialTheme.typography.labelSmall)
         Box(Modifier.padding(end = 3.dp, bottom = 3.dp)) {
             Box(Modifier.matchParentSize().offset(3.dp, 3.dp).background(Ink, FieldShape))
@@ -235,7 +261,7 @@ fun TxTextField(
                         textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold, color = Ink),
                         cursorBrush = SolidColor(Ink),
                         keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
                     )
                 }
                 if (unit != null) Text(unit, style = MaterialTheme.typography.labelMedium)
@@ -253,7 +279,7 @@ fun TxChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modif
     Box(
         modifier
             .clip(CardShape)
-            .background(if (selected) color.copy(alpha = 0.15f) else ItemsBg, CardShape)
+            .background(if (selected) color.copy(alpha = 0.15f).compositeOver(ItemsBg) else ItemsBg, CardShape)
             .border(1.5.dp, if (selected) color else Ink, CardShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)

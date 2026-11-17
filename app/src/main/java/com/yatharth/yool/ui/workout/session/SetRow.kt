@@ -20,16 +20,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +53,10 @@ import com.yatharth.yool.data.model.SetType
 import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.TxChip
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDialogButtons
+import com.yatharth.yool.ui.components.TxMenu
+import com.yatharth.yool.ui.components.TxMenuItem
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Amber
 import com.yatharth.yool.ui.theme.Coral
@@ -96,7 +96,7 @@ internal fun SetField(
             value = text,
             onValueChange = onText,
             singleLine = true,
-            textStyle = TextStyle(fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, textAlign = TextAlign.Center, color = Ink),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, color = Ink),
             cursorBrush = SolidColor(Ink),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             modifier = Modifier
@@ -187,18 +187,15 @@ internal fun SetRow(
                             SetType.NORMAL -> Ink
                         },
                     )
-                    DropdownMenu(typeMenu, { typeMenu = false }) {
+                    TxMenu(typeMenu, { typeMenu = false }) {
                         SetType.entries.forEach { st ->
-                            DropdownMenuItem(
-                                text = { Text(st.label) },
-                                onClick = { typeMenu = false; vm.patchSet(set.id) { it.copy(type = st) } },
-                            )
+                            TxMenuItem(st.label, { typeMenu = false; vm.patchSet(set.id) { it.copy(type = st) } })
                         }
                     }
-                    DropdownMenu(optMenu, { optMenu = false }) {
-                        DropdownMenuItem(text = { Text("RPE") }, onClick = { optMenu = false; rpeDialog = true })
-                        if (!editing) DropdownMenuItem(text = { Text("Rest time") }, onClick = { optMenu = false; restDialog = true })
-                        DropdownMenuItem(text = { Text("Delete set", color = Coral) }, onClick = { optMenu = false; vm.deleteSet(set.id) })
+                    TxMenu(optMenu, { optMenu = false }) {
+                        TxMenuItem("RPE", { optMenu = false; rpeDialog = true })
+                        if (!editing) TxMenuItem("Rest time", { optMenu = false; restDialog = true })
+                        TxMenuItem("Delete set", { optMenu = false; vm.deleteSet(set.id) }, color = Coral)
                     }
                 }
 
@@ -261,46 +258,35 @@ internal fun SetRow(
     }
 
     if (rpeDialog) {
-        AlertDialog(
-            onDismissRequest = { rpeDialog = false },
-            title = { Text("RPE") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SessionMath.RpeOptions.chunked(3).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            row.forEach { v ->
-                                TxChip(SessionMath.rpeText(v), set.rpe == v, { rpeDialog = false; vm.patchSet(set.id) { it.copy(rpe = v) } })
-                            }
-                        }
+        TxDialog("RPE", { rpeDialog = false }) {
+            SessionMath.RpeOptions.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { v ->
+                        TxChip(SessionMath.rpeText(v), set.rpe == v, { rpeDialog = false; vm.patchSet(set.id) { it.copy(rpe = v) } })
                     }
                 }
-            },
-            confirmButton = { TextButton({ rpeDialog = false; vm.patchSet(set.id) { it.copy(rpe = null) } }) { Text("Clear", color = Ink) } },
-            dismissButton = { TextButton({ rpeDialog = false }) { Text("Cancel", color = Ink) } },
-        )
+            }
+            TxDialogButtons("Clear", { rpeDialog = false; vm.patchSet(set.id) { it.copy(rpe = null) } }, { rpeDialog = false })
+        }
     }
 
     if (restDialog) {
         var text by remember { mutableStateOf(set.restSec?.let { SessionMath.durationText(it) } ?: "") }
-        AlertDialog(
-            onDismissRequest = { restDialog = false },
-            title = { Text("Rest after this set") },
-            text = {
-                TxTextField(
-                    text, { text = it }, "Rest (m:ss or seconds)",
-                    placeholder = WorkoutMath.formatClock(WorkoutMath.restFor(null, ex.exercise.restSec, settings.defaultRestSec)),
-                )
-            },
-            confirmButton = {
-                TextButton({
+        TxDialog("Rest after this set", { restDialog = false }) {
+            TxTextField(
+                text, { text = it }, "Rest (m:ss or seconds)",
+                placeholder = WorkoutMath.formatClock(WorkoutMath.restFor(null, ex.exercise.restSec, settings.defaultRestSec)),
+            )
+            TxDialogButtons(
+                "Save",
+                {
                     restDialog = false
                     val sec = SessionMath.parseDuration(text)?.takeIf { it > 0 }
                     vm.patchSet(set.id) { it.copy(restSec = sec) }
-                }) { Text("Save", color = Ink) }
-            },
-            dismissButton = {
-                TextButton({ restDialog = false; vm.patchSet(set.id) { it.copy(restSec = null) } }) { Text("Use default", color = Ink) }
-            },
-        )
+                },
+                { restDialog = false; vm.patchSet(set.id) { it.copy(restSec = null) } },
+                dismissLabel = "Use default",
+            )
+        }
     }
 }

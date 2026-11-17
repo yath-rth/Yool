@@ -15,7 +15,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.yatharth.yool.appContainer
 import com.yatharth.yool.domain.WorkoutMath
+import androidx.compose.ui.text.style.TextOverflow
 import com.yatharth.yool.ui.components.ShadowCard
+import com.yatharth.yool.ui.components.TxBadge
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.workout.session.RestTimer
@@ -33,10 +35,14 @@ fun ActiveWorkoutBanner(onOpen: () -> Unit) {
     val remaining = rest?.remainingSec(now) ?: 0
 
     ShadowCard(Modifier.padding(horizontal = 12.dp, vertical = 2.dp), onClick = onOpen, contentPadding = 10.dp, shadow = 3.dp) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(w.workout.name.uppercase(), style = MaterialTheme.typography.labelMedium, color = Ink, maxLines = 1, modifier = Modifier.weight(1f))
-            if (remaining > 0) Text("REST ${WorkoutMath.formatClock(remaining)}", style = MaterialTheme.typography.labelMedium, color = Coral)
-            Text(SessionMath.elapsedClock(now - w.workout.startedAt), style = MaterialTheme.typography.titleSmall)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                w.workout.name.uppercase() + " · " + SessionMath.elapsedClock(now - w.workout.startedAt),
+                style = MaterialTheme.typography.labelMedium, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (remaining > 0) Text("REST ${WorkoutMath.formatClock(remaining)}", style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
+            TxBadge("Resume", color = Coral)
         }
     }
 }

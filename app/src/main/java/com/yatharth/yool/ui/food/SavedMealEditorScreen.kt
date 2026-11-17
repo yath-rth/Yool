@@ -1,7 +1,5 @@
 package com.yatharth.yool.ui.food
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,15 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,8 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -49,6 +47,10 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDivider
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
@@ -128,46 +130,54 @@ fun SavedMealEditorScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     var picking by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        BackTitle(if (mealId == 0L) "New saved meal" else "Edit saved meal", onDone)
+    Column(Modifier.fillMaxSize().padding(contentPadding)) {
+        TxTopBar(if (mealId == 0L) "New saved meal" else "Edit saved meal", onBack = onDone, modifier = Modifier.padding(horizontal = 16.dp))
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TxTextField(state.name, vm::setName, "Name", Modifier.fillMaxWidth(), placeholder = "e.g. Usual breakfast", maxLength = 60)
+            ShadowCard(Modifier.fillMaxWidth()) {
+                SectionLabel("Basics")
+                TxTextField(state.name, vm::setName, "Name", Modifier.fillMaxWidth(), placeholder = "e.g. Usual breakfast", maxLength = 60)
+            }
 
-            SectionLabel("Foods")
-            state.items.forEachIndexed { i, item ->
-                ShadowCard(Modifier.fillMaxWidth(), contentPadding = 12.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            ShadowCard(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("FOODS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                    TxIconButton(Icons.Outlined.Add, "Add food", { picking = true }, size = 32.dp)
+                }
+                if (state.items.isEmpty()) {
+                    Text("No foods yet", style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.5f))
+                }
+                state.items.forEachIndexed { i, item ->
+                    if (i > 0) TxDivider()
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.food.name, style = MaterialTheme.typography.titleSmall)
-                            Text(item.food.servingLabel, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                item.food.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(item.food.servingLabel, style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f))
                         }
-                        Icon(Icons.Outlined.Close, "Remove ${item.food.name}", Modifier.clickable { vm.removeAt(i) }.padding(4.dp))
+                        TxTextField(item.servings, { vm.setServings(i, it) }, "Servings", Modifier.width(96.dp), numeric = true)
+                        TxIconButton(Icons.Outlined.Close, "Remove ${item.food.name}", { vm.removeAt(i) }, size = 32.dp)
                     }
-                    TxTextField(item.servings, { vm.setServings(i, it) }, "Servings", Modifier.fillMaxWidth(), numeric = true)
                 }
             }
-            TxButton("Add food", { picking = true }, Modifier.fillMaxWidth(), icon = Icons.Outlined.Add)
 
             val t = state.totals
-            SectionLabel("Totals")
             ShadowCard(Modifier.fillMaxWidth()) {
+                SectionLabel("Totals")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatValue("Kcal", Fmt.int(Math.round(t.kcal)), Modifier.weight(1f))
                     StatValue("Protein", Fmt.one(t.proteinG), Modifier.weight(1f), unit = "g")
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatValue("Carbs", Fmt.one(t.carbsG), Modifier.weight(1f), unit = "g")
                     StatValue("Fat", Fmt.one(t.fatG), Modifier.weight(1f), unit = "g")
-                    StatValue("Fiber", Fmt.one(t.fiberG), Modifier.weight(1f), unit = "g")
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TxButton("Cancel", onDone, Modifier.weight(1f))
-            TxButton("Save", { vm.save(onDone) }, Modifier.weight(1f), bg = Coral, textColor = ItemsBg, enabled = state.canSave)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            TxButton("Save", { vm.save(onDone) }, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg, enabled = state.canSave)
         }
     }
 
@@ -184,26 +194,21 @@ fun SavedMealEditorScreen(
 private fun FoodPickerDialog(vm: SavedMealEditorViewModel, onDismiss: () -> Unit, onPick: (Food) -> Unit) {
     val query by vm.query.collectAsStateWithLifecycle()
     val results by vm.results.collectAsStateWithLifecycle()
-    Dialog(onDismissRequest = onDismiss) {
-        val shape = RoundedCornerShape(4.dp)
-        Column(
-            Modifier.fillMaxWidth().background(ItemsBg, shape).border(2.dp, Ink, shape).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            TxTextField(query, vm::setQuery, "Search foods", Modifier.fillMaxWidth(), placeholder = "Name or brand")
-            if (results.isEmpty()) Text("No foods found.", style = MaterialTheme.typography.bodyMedium)
-            LazyColumn(Modifier.heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(results, key = { it.id }) { f ->
-                    Column(Modifier.fillMaxWidth().clickable { onPick(f) }.padding(vertical = 6.dp)) {
-                        Text(f.name, style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            listOfNotNull(f.brand, f.servingLabel).joinToString(" · ") + " · " + macroLine(f.perServing),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
+    TxDialog("Add food", onDismiss) {
+        TxTextField(query, vm::setQuery, "Search foods", Modifier.fillMaxWidth(), placeholder = "Name or brand")
+        if (results.isEmpty()) Text("No foods found", style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.7f))
+        LazyColumn(Modifier.heightIn(max = 320.dp)) {
+            itemsIndexed(results, key = { _, f -> f.id }) { i, f ->
+                if (i > 0) TxDivider()
+                Column(Modifier.fillMaxWidth().clickable { onPick(f) }.padding(vertical = 8.dp)) {
+                    Text(f.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        listOfNotNull(f.brand, f.servingLabel).joinToString(" · ") + " · " + macroLine(f.perServing),
+                        style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f),
+                    )
                 }
             }
-            TxButton("Close", onDismiss, Modifier.fillMaxWidth())
         }
+        TxButton("Close", onDismiss, Modifier.fillMaxWidth(), fill = false)
     }
 }

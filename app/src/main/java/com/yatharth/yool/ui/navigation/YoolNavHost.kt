@@ -3,24 +3,18 @@ package com.yatharth.yool.ui.navigation
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Today
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -40,8 +34,11 @@ import com.yatharth.yool.ui.food.SavedMealEditorScreen
 import com.yatharth.yool.ui.food.SavedMealsScreen
 import com.yatharth.yool.ui.graphs.GraphsScreen
 import com.yatharth.yool.ui.history.HistoryScreen
+import com.yatharth.yool.ui.components.TxBottomBar
+import com.yatharth.yool.ui.components.TxNavItem
 import com.yatharth.yool.ui.settings.SettingsScreen
-import com.yatharth.yool.ui.theme.Coral
+import com.yatharth.yool.ui.settings.SettingsSection
+import com.yatharth.yool.ui.settings.SettingsSectionScreen
 import com.yatharth.yool.ui.workout.ActiveWorkoutBanner
 import com.yatharth.yool.ui.workout.ActiveWorkoutScreen
 import com.yatharth.yool.ui.workout.ExerciseDetailScreen
@@ -51,8 +48,6 @@ import com.yatharth.yool.ui.workout.TemplateEditorScreen
 import com.yatharth.yool.ui.workout.WorkoutDetailScreen
 import com.yatharth.yool.ui.workout.WorkoutHistoryScreen
 import com.yatharth.yool.ui.workout.WorkoutHomeScreen
-import com.yatharth.yool.ui.theme.Ink
-import com.yatharth.yool.ui.theme.SecondaryBg
 import com.yatharth.yool.ui.theme.dotGridBackground
 import java.time.LocalDate
 
@@ -61,11 +56,15 @@ object Routes {
     const val HISTORY = "history"
     const val GRAPHS = "graphs"
     const val SETTINGS = "settings"
+    const val SETTINGS_SECTION = "settings/{section}"
+    fun settingsSection(s: SettingsSection) = "settings/${s.name}"
     const val DAY = "day/{epochDay}"
     fun day(date: LocalDate) = "day/${date.toEpochDay()}"
 
     const val FOOD_DIARY = "food/{epochDay}"
     fun foodDiary(date: LocalDate) = "food/${date.toEpochDay()}"
+    /** Food tab: always today's diary, no back button. */
+    const val FOOD_TAB = "foodTab"
     const val FOOD_ADD = "food/{epochDay}/add/{meal}"
     fun foodAdd(date: LocalDate, meal: Meal) = "food/${date.toEpochDay()}/add/${meal.name}"
     /** foodId 0 = new food. */
@@ -96,15 +95,25 @@ object Routes {
     fun exerciseEditor(id: Long = 0) = "exerciseEditor/$id"
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
-
+/** Bottom-bar tabs. Keys are each tab's root route. */
 private val tabs = listOf(
-    Tab(Routes.TODAY, "Today", Icons.Outlined.Today),
-    Tab(Routes.WORKOUT, "Workout", Icons.Outlined.FitnessCenter),
-    Tab(Routes.HISTORY, "History", Icons.Outlined.CalendarMonth),
-    Tab(Routes.GRAPHS, "Graphs", Icons.Outlined.ShowChart),
-    Tab(Routes.SETTINGS, "Settings", Icons.Outlined.Settings),
+    TxNavItem(Routes.TODAY, "Today", Icons.Outlined.Today),
+    TxNavItem(Routes.FOOD_TAB, "Food", Icons.Outlined.Restaurant),
+    TxNavItem(Routes.WORKOUT, "Workout", Icons.Outlined.FitnessCenter),
+    TxNavItem(Routes.GRAPHS, "Progress", Icons.Outlined.ShowChart),
+    TxNavItem(Routes.SETTINGS, "Settings", Icons.Outlined.Settings),
 )
+
+/** Which tab a (possibly nested) route belongs to, so sub-screens keep their tab highlighted. */
+private fun tabFor(route: String?): String? = when {
+    route == null -> null
+    route == Routes.TODAY || route.startsWith("day/") || route == Routes.HISTORY -> Routes.TODAY
+    route.startsWith("food") || route.startsWith("savedMeal") -> Routes.FOOD_TAB
+    route.startsWith("workout") || route.startsWith("template") || route.startsWith("exercise") -> Routes.WORKOUT
+    route == Routes.GRAPHS -> Routes.GRAPHS
+    route.startsWith("settings") -> Routes.SETTINGS
+    else -> null
+}
 
 @Composable
 fun YoolNavHost(navController: NavHostController = rememberNavController()) {
@@ -117,40 +126,38 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
         bottomBar = {
           Column {
             if (current != Routes.ACTIVE_WORKOUT) ActiveWorkoutBanner(onOpen = { navController.navigate(Routes.ACTIVE_WORKOUT) { launchSingleTop = true } })
-            NavigationBar(containerColor = SecondaryBg, contentColor = Ink) {
-                tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = current == tab.route,
-                        onClick = { navController.navigateTab(tab.route) },
-                        icon = { Icon(tab.icon, tab.label) },
-                        label = { Text(tab.label.uppercase(), style = MaterialTheme.typography.labelSmall) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Coral,
-                            selectedTextColor = Coral,
-                            indicatorColor = Coral.copy(alpha = 0.12f),
-                            unselectedIconColor = Ink,
-                            unselectedTextColor = Ink,
-                        ),
-                    )
-                }
-            }
+            TxBottomBar(tabs, tabFor(current)) { navController.navigateTab(it.key) }
           }
         },
     ) { padding ->
-        NavHost(navController, startDestination = Routes.TODAY) {
+        // Screens apply `padding` inside their own scroll, so the viewport itself must stop at the top of
+        // the keyboard (full IME height); then focused fields scroll fully into view instead of hiding.
+        NavHost(
+            navController,
+            startDestination = Routes.TODAY,
+            modifier = Modifier.imePadding(),
+        ) {
             composable(Routes.TODAY) {
                 DayScreen(
                     LocalDate.now(), padding,
                     onOpenFood = { navController.navigate(Routes.foodDiary(it)) },
                     onStartWorkout = { navController.navigate(Routes.ACTIVE_WORKOUT) },
                     onOpenWorkout = { navController.navigate(Routes.workoutDetail(it)) },
+                    onOpenHistory = { navController.navigate(Routes.HISTORY) },
                 )
             }
-            composable(Routes.HISTORY) { HistoryScreen(padding) { navController.navigate(Routes.day(it)) } }
+            composable(Routes.HISTORY) {
+                HistoryScreen(padding, onOpenDay = { navController.navigate(Routes.day(it)) }, onBack = { navController.popBackStack() })
+            }
             composable(Routes.GRAPHS) { GraphsScreen(padding) }
             composable(Routes.SETTINGS) {
-                SettingsScreen(
+                SettingsScreen(padding, onOpenSection = { navController.navigate(Routes.settingsSection(it)) })
+            }
+            composable(Routes.SETTINGS_SECTION, arguments = listOf(navArgument("section") { type = NavType.StringType })) { entry ->
+                SettingsSectionScreen(
+                    SettingsSection.valueOf(entry.arguments!!.getString("section")!!),
                     padding,
+                    onBack = { navController.popBackStack() },
                     onOpenFoodLibrary = { navController.navigate(Routes.FOOD_LIBRARY) },
                     onOpenSavedMeals = { navController.navigate(Routes.SAVED_MEALS) },
                 )
@@ -178,6 +185,17 @@ fun YoolNavHost(navController: NavHostController = rememberNavController()) {
 private val epochDayArg = navArgument("epochDay") { type = NavType.LongType }
 
 private fun NavGraphBuilder.foodGraph(nav: NavHostController, padding: PaddingValues) {
+    composable(Routes.FOOD_TAB) {
+        val date = LocalDate.now()
+        FoodDiaryScreen(
+            date = date,
+            contentPadding = padding,
+            onBack = null,
+            onAddFood = { meal -> nav.navigate(Routes.foodAdd(date, meal)) },
+            onNavigateDay = { d -> nav.navigate(Routes.foodDiary(d)) },
+            onOpenSavedMeals = { nav.navigate(Routes.SAVED_MEALS) },
+        )
+    }
     composable(Routes.FOOD_DIARY, arguments = listOf(epochDayArg)) { entry ->
         val date = LocalDate.ofEpochDay(entry.arguments!!.getLong("epochDay"))
         FoodDiaryScreen(

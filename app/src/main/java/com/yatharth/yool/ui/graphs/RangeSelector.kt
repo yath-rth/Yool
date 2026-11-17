@@ -1,14 +1,11 @@
 package com.yatharth.yool.ui.graphs
 
+import com.yatharth.yool.ui.components.TxDateRangePickerDialog
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +17,7 @@ import com.yatharth.yool.domain.RangePreset
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxSegmented
+import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.theme.ItemsBg
 import java.time.Instant
@@ -60,31 +58,13 @@ fun RangeSelector(
         }
     }
     if (picking) {
-        val state = rememberDateRangePickerState(
-            initialSelectedStartDateMillis = selection.customFrom?.toUtcMillis(),
-            initialSelectedEndDateMillis = selection.customTo?.toUtcMillis(),
+        TxDateRangePickerDialog(
+            title = "Custom range",
+            initialFrom = selection.customFrom,
+            initialTo = selection.customTo,
+            onConfirm = { s, e -> onChange(RangeSelection(RangePreset.CUSTOM, s, e)); picking = false },
+            onDismiss = { picking = false },
         )
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            confirmButton = {
-                TxButton(
-                    "Apply",
-                    onClick = {
-                        val s = state.selectedStartDateMillis?.fromUtcMillis()
-                        val e = state.selectedEndDateMillis?.fromUtcMillis() ?: s
-                        if (s != null && e != null) onChange(RangeSelection(RangePreset.CUSTOM, s, e))
-                        picking = false
-                    },
-                    enabled = state.selectedStartDateMillis != null,
-                    modifier = Modifier.width(110.dp).padding(end = 8.dp, bottom = 8.dp),
-                )
-            },
-            dismissButton = {
-                TxButton("Cancel", onClick = { picking = false }, modifier = Modifier.width(110.dp).padding(end = 8.dp, bottom = 8.dp))
-            },
-        ) {
-            DateRangePicker(state, modifier = Modifier.weight(1f, fill = false))
-        }
     }
 }
 

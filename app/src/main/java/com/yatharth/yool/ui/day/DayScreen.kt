@@ -10,20 +10,21 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
@@ -48,18 +49,22 @@ import com.yatharth.yool.data.model.DefaultBingeTriggers
 import com.yatharth.yool.data.model.Metric
 import com.yatharth.yool.data.model.TargetMetric
 import com.yatharth.yool.domain.TargetCheck
+import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.sync.SyncStatus
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxBadge
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
-import com.yatharth.yool.ui.components.TxProgress
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDivider
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxMetricTile
 import com.yatharth.yool.ui.components.TxSwitch
-import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxTextField
-import com.yatharth.yool.domain.WorkoutMath
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.theme.Amber
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Green
@@ -77,12 +82,14 @@ fun DayScreen(
     contentPadding: PaddingValues,
     onNavigateDay: ((LocalDate) -> Unit)? = null,
     onBack: (() -> Unit)? = null,
-    /** Opens the food diary for a date (wired by feat/food-diary into the Nutrition card). */
+    /** Opens the food diary for a date. */
     onOpenFood: (LocalDate) -> Unit = {},
-    /** Starts an empty workout (or resumes the active one) and opens it. Wired by feat/graphs-insights. */
+    /** Starts an empty workout (or resumes the active one) and opens it. */
     onStartWorkout: () -> Unit = {},
     /** Opens a finished workout's detail. */
     onOpenWorkout: (workoutId: Long) -> Unit = {},
+    /** Opens the history list (Today tab only). */
+    onOpenHistory: (() -> Unit)? = null,
 ) {
     val repo = LocalContext.current.appContainer.repository
     val workoutRepo = LocalContext.current.appContainer.workoutRepository
@@ -91,6 +98,7 @@ fun DayScreen(
 
     val syncEngine = LocalContext.current.appContainer.syncEngine
     val syncStatus by syncEngine.status.collectAsStateWithLifecycle()
+    var editing by remember(date) { mutableStateOf<Tile?>(null) }
 
     PullToRefreshBox(
         isRefreshing = syncStatus == SyncStatus.Running,
@@ -105,93 +113,270 @@ fun DayScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        DayHeader(date, onNavigateDay, onBack)
+        DayHeader(date, onNavigateDay, onBack, onOpenHistory)
         if (!state.loaded) return@Column
 
         // keys reset local text state when switching days / after first load
         val k = "${date}-${state.loaded}"
-        StreakAndMoodRow(state)
-        WeightCard(state, k, vm::update)
+        HeroCard(state)
+        MetricGrid(state) { editing = it }
         CheckInCard(state, k, vm::update)
-        NutritionCard(state, k, vm::update) { onOpenFood(date) }
-        ActivityCard(state, k, vm::update)
-        WorkoutCard(state, date == LocalDate.now(), vm::update, onStartWorkout, onOpenWorkout)
         Spacer(Modifier.height(24.dp))
-    }
-    }
-}
 
-@Composable
-private fun DayHeader(date: LocalDate, onNavigateDay: ((LocalDate) -> Unit)?, onBack: (() -> Unit)?) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        if (onBack != null) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
-        }
-        Column(Modifier.weight(1f)) {
-            Text(Fmt.date(date).uppercase(), style = MaterialTheme.typography.labelLarge)
-            val sub = if (Fmt.date(date) != Fmt.dateNoRelative(date)) Fmt.dateNoRelative(date)
-            else date.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
-            Text(sub, style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
-        }
-        if (onNavigateDay != null) {
-            NavArrow(Icons.AutoMirrored.Outlined.ArrowBack) { onNavigateDay(date.minusDays(1)) }
-            Spacer(Modifier.size(8.dp))
-            if (date.isBefore(LocalDate.now())) NavArrow(Icons.AutoMirrored.Outlined.ArrowForward) { onNavigateDay(date.plusDays(1)) }
-        }
-    }
-}
-
-@Composable
-private fun NavArrow(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(36.dp)
-            .background(ItemsBg, RoundedCornerShape(4.dp))
-            .border(1.5.dp, Ink, RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, Modifier.size(18.dp)) }
-}
-
-@Composable
-private fun StreakAndMoodRow(state: DayUiState) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ShadowCard(Modifier.weight(1f)) {
-            StatValue("Binge-free", "${state.bingeFreeStreak}", unit = if (state.bingeFreeStreak == 1) "day" else "days", color = Green, big = true)
-        }
-        ShadowCard(Modifier.weight(1f)) {
-            val done = state.day.checkInDone
-            StatValue("Check-in", if (done) "Done" else "To do", color = if (done) Green else Coral, big = true)
-        }
-    }
-}
-
-// ── Weight ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun WeightCard(state: DayUiState, key: String, update: ((DailyEntry) -> DailyEntry) -> Unit) {
-    var text by remember(key) { mutableStateOf(state.entry?.weightKg?.let(Fmt::kg) ?: "") }
-    val goal = state.targets.entryOn(TargetMetric.WEIGHT_GOAL, state.date)
-    ShadowCard {
-        SectionLabel("Weight · first weigh-in")
-        TxTextField(
-            value = text,
-            onValueChange = { v -> text = v; update { it.copy(weightKg = Fmt.parseDouble(v)) } },
-            label = "Morning weight",
-            unit = "kg",
-            numeric = true,
-            placeholder = state.day.weightKg?.let(Fmt::kg) ?: "0.0",
-        )
-        if (state.entry?.weightKg == null && state.day.weightKg != null) {
-            SourceTag("From ${Fmt.source(state.day.sources[Metric.WEIGHT_KG])}: ${Fmt.kg(state.day.weightKg)} kg")
-        }
-        if (goal != null) {
-            val diff = state.day.weightKg?.let { it - goal.value }
-            Text(
-                "Goal ${Fmt.kg(goal.value)} kg" + (diff?.let { " · ${Fmt.kg(kotlin.math.abs(it))} kg ${if (it > 0) "to go" else "below"}" } ?: ""),
-                style = MaterialTheme.typography.bodySmall,
+        editing?.let { tile ->
+            MetricEditorDialog(
+                tile, state, k, vm::update,
+                onDismiss = { editing = null },
+                onOpenFood = { editing = null; onOpenFood(date) },
+                onStartWorkout = { editing = null; onStartWorkout() },
+                onOpenWorkout = { editing = null; onOpenWorkout(it) },
             )
         }
+    }
+    }
+}
+
+@Composable
+private fun DayHeader(date: LocalDate, onNavigateDay: ((LocalDate) -> Unit)?, onBack: (() -> Unit)?, onOpenHistory: (() -> Unit)?) {
+    val sub = if (Fmt.date(date) != Fmt.dateNoRelative(date)) Fmt.dateNoRelative(date)
+    else date.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())
+    TxTopBar(Fmt.date(date), subtitle = sub, onBack = onBack, actions = {
+        if (onOpenHistory != null) TxIconButton(Icons.Outlined.CalendarMonth, "History", onOpenHistory)
+        if (onNavigateDay != null) {
+            TxIconButton(Icons.AutoMirrored.Outlined.ArrowBack, "Previous day", { onNavigateDay(date.minusDays(1)) })
+            if (date.isBefore(LocalDate.now())) TxIconButton(Icons.AutoMirrored.Outlined.ArrowForward, "Next day", { onNavigateDay(date.plusDays(1)) })
+        }
+    })
+}
+
+// ── Hero ─────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun HeroCard(state: DayUiState) {
+    val d = state.day
+    val logged = listOf(d.weightKg, d.calories, d.proteinG, d.steps, d.sleepHours, d.workoutDone).count { it != null }
+    ShadowCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatValue(
+                "Binge-free", "${state.bingeFreeStreak}",
+                unit = if (state.bingeFreeStreak == 1) "day" else "days", color = Green, big = true, modifier = Modifier.weight(1f),
+            )
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TxBadge(if (d.checkInDone) "Check-in done" else "Check-in to do", color = if (d.checkInDone) Green else Coral)
+                Text("$logged of 6 logged", style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
+            }
+        }
+    }
+}
+
+// ── Metric grid ──────────────────────────────────────────────────────────────
+
+private enum class Tile { Weight, Calories, Protein, Steps, Sleep, Workout }
+
+@Composable
+private fun MetricGrid(state: DayUiState, onOpen: (Tile) -> Unit) {
+    val d = state.day
+    val t = state.targets
+    val goal = t.valueOn(TargetMetric.WEIGHT_GOAL, state.date)
+    val calT = t.valueOn(TargetMetric.CALORIES, state.date)
+    val proT = t.valueOn(TargetMetric.PROTEIN, state.date)
+    val stepT = t.valueOn(TargetMetric.STEPS, state.date)
+    val sleepT = t.valueOn(TargetMetric.SLEEP_HOURS, state.date)
+
+    fun frac(actual: Double?, target: Double?): Float? =
+        if (actual == null || target == null || target <= 0.0) null else (actual / target).toFloat().coerceIn(0f, 1f)
+
+    val weight = d.weightKg
+    val diff = if (weight != null && goal != null) weight - goal else null
+    val calOver = TargetCheck.caloriesHit(d.calories, calT) == false
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TxMetricTile(
+                "Weight", Fmt.kg(weight), Modifier.weight(1f).fillMaxHeight(), unit = "kg", color = MetricColors.Weight,
+                footnote = when {
+                    goal == null -> null
+                    diff == null -> "goal ${Fmt.kg(goal)} kg"
+                    else -> "goal ${Fmt.kg(goal)} kg · ${Fmt.kg(kotlin.math.abs(diff))} ${if (diff > 0) "to go" else "below"}"
+                },
+                onClick = { onOpen(Tile.Weight) },
+            )
+            TxMetricTile(
+                "Calories", Fmt.int(d.calories), Modifier.weight(1f).fillMaxHeight(), unit = "kcal", color = MetricColors.Calories,
+                progress = frac(d.calories?.toDouble(), calT), progressColor = if (calOver) Coral else MetricColors.Calories,
+                footnote = calT?.let { "of ${Fmt.int(it.toLong())} limit" },
+                footnoteColor = if (calOver) Coral else Ink.copy(alpha = 0.7f),
+                onClick = { onOpen(Tile.Calories) },
+            )
+        }
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TxMetricTile(
+                "Protein", Fmt.int(d.proteinG?.toInt()), Modifier.weight(1f).fillMaxHeight(), unit = "g", color = MetricColors.Protein,
+                progress = frac(d.proteinG, proT), footnote = proT?.let { "of ${Fmt.int(it.toLong())} g" },
+                onClick = { onOpen(Tile.Protein) },
+            )
+            TxMetricTile(
+                "Steps", Fmt.int(d.steps), Modifier.weight(1f).fillMaxHeight(), color = MetricColors.Steps,
+                progress = frac(d.steps?.toDouble(), stepT), footnote = stepT?.let { "of ${Fmt.int(it.toLong())}" },
+                onClick = { onOpen(Tile.Steps) },
+            )
+        }
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TxMetricTile(
+                "Sleep", Fmt.one(d.sleepHours), Modifier.weight(1f).fillMaxHeight(), unit = "h", color = MetricColors.Sleep,
+                progress = frac(d.sleepHours, sleepT), footnote = sleepT?.let { "target ${Fmt.one(it)} h" },
+                onClick = { onOpen(Tile.Sleep) },
+            )
+            TxMetricTile(
+                "Workout",
+                when (d.workoutDone) { true -> "Done"; false -> "Rest"; null -> "—" },
+                Modifier.weight(1f).fillMaxHeight(), color = MetricColors.Workout,
+                footnote = when (d.workoutDone) { true -> "Trained"; false -> "Rest day"; null -> "Not logged" },
+                onClick = { onOpen(Tile.Workout) },
+            )
+        }
+    }
+}
+
+// ── Editor dialogs ───────────────────────────────────────────────────────────
+
+@Composable
+private fun MetricEditorDialog(
+    tile: Tile,
+    state: DayUiState,
+    key: String,
+    update: ((DailyEntry) -> DailyEntry) -> Unit,
+    onDismiss: () -> Unit,
+    onOpenFood: () -> Unit,
+    onStartWorkout: () -> Unit,
+    onOpenWorkout: (Long) -> Unit,
+) {
+    val d = state.day
+    val e = state.entry
+    when (tile) {
+        Tile.Weight -> {
+            var text by remember(key) { mutableStateOf(e?.weightKg?.let(Fmt::kg) ?: "") }
+            val goal = state.targets.entryOn(TargetMetric.WEIGHT_GOAL, state.date)
+            TxDialog("Weight", onDismiss) {
+                TxTextField(
+                    value = text,
+                    onValueChange = { v -> text = v; update { it.copy(weightKg = Fmt.parseDouble(v)) } },
+                    label = "Morning weight",
+                    unit = "kg",
+                    numeric = true,
+                    placeholder = d.weightKg?.let(Fmt::kg) ?: "0.0",
+                )
+                if (e?.weightKg == null && d.weightKg != null) {
+                    SourceTag("From ${Fmt.source(d.sources[Metric.WEIGHT_KG])}: ${Fmt.kg(d.weightKg)} kg")
+                }
+                if (goal != null) {
+                    val diff = d.weightKg?.let { it - goal.value }
+                    Text(
+                        "Goal ${Fmt.kg(goal.value)} kg" + (diff?.let { " · ${Fmt.kg(kotlin.math.abs(it))} kg ${if (it > 0) "to go" else "below"}" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                TxButton("Done", onDismiss, Modifier.fillMaxWidth())
+            }
+        }
+        Tile.Calories -> OverrideDialog(
+            "Calories", Fmt.int(d.calories), "kcal", d.sources[Metric.CALORIES]?.let(Fmt::source),
+            e?.calories?.toString() ?: "", key + "cal", onDismiss,
+            onOverride = { v -> update { it.copy(calories = Fmt.parseInt(v)) } },
+            primaryLabel = "Open food diary", onPrimary = onOpenFood,
+        )
+        Tile.Protein -> OverrideDialog(
+            "Protein", Fmt.int(d.proteinG?.toInt()), "g", d.sources[Metric.PROTEIN_G]?.let(Fmt::source),
+            e?.proteinG?.let { Fmt.one(it) } ?: "", key + "pro", onDismiss,
+            onOverride = { v -> update { it.copy(proteinG = Fmt.parseDouble(v)) } },
+            primaryLabel = "Open food diary", onPrimary = onOpenFood,
+        )
+        Tile.Steps -> OverrideDialog(
+            "Steps", Fmt.int(d.steps), "steps", d.sources[Metric.STEPS]?.let(Fmt::source),
+            e?.steps?.toString() ?: "", key + "steps", onDismiss,
+            onOverride = { v -> update { it.copy(steps = Fmt.parseInt(v)) } },
+        )
+        Tile.Sleep -> OverrideDialog(
+            "Sleep", Fmt.one(d.sleepHours), "h", d.sources[Metric.SLEEP_HOURS]?.let(Fmt::source),
+            e?.sleepHours?.let { Fmt.one(it) } ?: "", key + "sleep", onDismiss,
+            onOverride = { v -> update { it.copy(sleepHours = Fmt.parseDouble(v)) } },
+        )
+        Tile.Workout -> TxDialog("Workout", onDismiss) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        when (d.workoutDone) { true -> "Done"; false -> "Rest day"; null -> "Not logged" },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (d.workoutDone == true) MetricColors.Workout else Ink,
+                    )
+                    d.sources[Metric.WORKOUT]?.let { SourceTag("Source: ${Fmt.source(it)}") }
+                }
+                TxSwitch(checked = d.workoutDone == true, onCheckedChange = { v -> update { it.copy(workoutDone = v) } })
+            }
+            state.workouts.forEach { w ->
+                TxDivider()
+                Column(
+                    Modifier.fillMaxWidth().clickable { onOpenWorkout(w.workout.id) }.padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(w.workout.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                        Text(
+                            WorkoutMath.formatDuration((w.workout.endedAt ?: w.workout.startedAt) - w.workout.startedAt) +
+                                " · ${WorkoutMath.kg(WorkoutMath.volume(w))} kg",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                    WorkoutMath.exerciseLines(w).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
+            }
+            // Best sets only for imported days with no logged workout.
+            if (state.workouts.isEmpty() && state.lifts.isNotEmpty()) {
+                SectionLabel("Best sets")
+                state.lifts.forEach { l ->
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(l.exercise, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text("${Fmt.kg(l.weightKg)} kg × ${l.reps}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+            if (state.activeWorkout != null) {
+                TxButton("Resume workout", onStartWorkout, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
+            } else if (state.date == LocalDate.now()) {
+                TxButton("Start workout", onStartWorkout, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
+            }
+            TxButton("Close", onDismiss, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/** Resolved value + source + manual override field (blank = use imported). */
+@Composable
+private fun OverrideDialog(
+    title: String,
+    value: String,
+    unit: String,
+    source: String?,
+    overrideText: String,
+    key: String,
+    onDismiss: () -> Unit,
+    onOverride: (String) -> Unit,
+    primaryLabel: String? = null,
+    onPrimary: () -> Unit = {},
+) {
+    var text by remember(key) { mutableStateOf(overrideText) }
+    TxDialog(title, onDismiss) {
+        StatValue(title, value, unit = unit)
+        if (!source.isNullOrEmpty()) SourceTag("Source: $source")
+        TxTextField(
+            value = text,
+            onValueChange = { v -> text = v; onOverride(v) },
+            label = "Override (blank = use imported)",
+            unit = unit,
+            numeric = true,
+        )
+        if (primaryLabel != null) TxButton(primaryLabel, onPrimary, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg)
+        TxButton("Done", onDismiss, Modifier.fillMaxWidth())
     }
 }
 
@@ -204,6 +389,7 @@ private fun CheckInCard(state: DayUiState, key: String, update: ((DailyEntry) ->
     var bingeNote by remember(key) { mutableStateOf(e?.bingeNote ?: "") }
     var customTrigger by remember(key) { mutableStateOf(e?.bingeTrigger?.takeIf { it !in DefaultBingeTriggers } ?: "") }
     var note by remember(key) { mutableStateOf(e?.note ?: "") }
+    var showNote by remember(key) { mutableStateOf(!e?.note.isNullOrBlank()) }
 
     ShadowCard {
         SectionLabel("Did you binge?")
@@ -254,13 +440,17 @@ private fun CheckInCard(state: DayUiState, key: String, update: ((DailyEntry) ->
                 }
             }
         }
-        TxTextField(
-            value = note,
-            onValueChange = { v -> note = v; update { it.copy(note = v.ifBlank { null }) } },
-            label = "Anything else",
-            singleLine = false,
-            maxLength = 200,
-        )
+        if (showNote) {
+            TxTextField(
+                value = note,
+                onValueChange = { v -> note = v; update { it.copy(note = v.ifBlank { null }) } },
+                label = "Anything else",
+                singleLine = false,
+                maxLength = 200,
+            )
+        } else {
+            TxChip("Add note", selected = false, onClick = { showNote = true }, color = Ink)
+        }
     }
 }
 
@@ -270,168 +460,6 @@ fun moodColor(n: Int): Color = when (n) {
     3 -> Amber
     4 -> Color(0xFF8DAF55)
     else -> Green
-}
-
-// ── Nutrition ────────────────────────────────────────────────────────────────
-
-@Composable
-private fun NutritionCard(state: DayUiState, key: String, update: ((DailyEntry) -> DailyEntry) -> Unit, onLogFood: () -> Unit) {
-    val d = state.day
-    val calTarget = state.targets.valueOn(TargetMetric.CALORIES, state.date)
-    val proTarget = state.targets.valueOn(TargetMetric.PROTEIN, state.date)
-    ShadowCard {
-        SectionLabel("Nutrition")
-        MetricBlock(
-            label = "Calories", value = Fmt.int(d.calories), unit = "kcal", color = MetricColors.Calories,
-            target = calTarget, actual = d.calories?.toDouble(), hit = TargetCheck.caloriesHit(d.calories, calTarget), ceiling = true,
-            source = d.sources[Metric.CALORIES]?.let(Fmt::source),
-            overrideText = state.entry?.calories?.toString() ?: "", key = key + "cal", numericUnit = "kcal",
-            onOverride = { v -> update { it.copy(calories = Fmt.parseInt(v)) } },
-        )
-        MetricBlock(
-            label = "Protein", value = Fmt.int(d.proteinG?.toInt()), unit = "g", color = MetricColors.Protein,
-            target = proTarget, actual = d.proteinG, hit = TargetCheck.floorHit(d.proteinG, proTarget),
-            source = d.sources[Metric.PROTEIN_G]?.let(Fmt::source),
-            overrideText = state.entry?.proteinG?.let { Fmt.one(it) } ?: "", key = key + "pro", numericUnit = "g",
-            onOverride = { v -> update { it.copy(proteinG = Fmt.parseDouble(v)) } },
-        )
-        TxButton("Log food", onClick = onLogFood, modifier = Modifier.fillMaxWidth())
-    }
-}
-
-// ── Steps + sleep ────────────────────────────────────────────────────────────
-
-@Composable
-private fun ActivityCard(state: DayUiState, key: String, update: ((DailyEntry) -> DailyEntry) -> Unit) {
-    val d = state.day
-    val stepTarget = state.targets.valueOn(TargetMetric.STEPS, state.date)
-    val sleepTarget = state.targets.valueOn(TargetMetric.SLEEP_HOURS, state.date)
-    ShadowCard {
-        SectionLabel("Activity & recovery")
-        MetricBlock(
-            label = "Steps", value = Fmt.int(d.steps), unit = "steps", color = MetricColors.Steps,
-            target = stepTarget, actual = d.steps?.toDouble(), hit = TargetCheck.floorHit(d.steps?.toDouble(), stepTarget),
-            source = d.sources[Metric.STEPS]?.let(Fmt::source),
-            overrideText = state.entry?.steps?.toString() ?: "", key = key + "steps", numericUnit = "steps",
-            onOverride = { v -> update { it.copy(steps = Fmt.parseInt(v)) } },
-        )
-        MetricBlock(
-            label = "Sleep", value = Fmt.one(d.sleepHours), unit = "h", color = MetricColors.Sleep,
-            target = sleepTarget, actual = d.sleepHours, hit = TargetCheck.floorHit(d.sleepHours, sleepTarget),
-            source = d.sources[Metric.SLEEP_HOURS]?.let(Fmt::source),
-            overrideText = state.entry?.sleepHours?.let { Fmt.one(it) } ?: "", key = key + "sleep", numericUnit = "h",
-            onOverride = { v -> update { it.copy(sleepHours = Fmt.parseDouble(v)) } },
-        )
-    }
-}
-
-/** Resolved value + target progress + source, with an optional manual override field. */
-@Composable
-private fun MetricBlock(
-    label: String,
-    value: String,
-    unit: String,
-    color: Color,
-    target: Double?,
-    actual: Double?,
-    hit: Boolean?,
-    source: String?,
-    overrideText: String,
-    key: String,
-    numericUnit: String,
-    onOverride: (String) -> Unit,
-    ceiling: Boolean = false,
-) {
-    var editing by remember(key) { mutableStateOf(false) }
-    var text by remember(key) { mutableStateOf(overrideText) }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            StatValue(label, value, unit = unit, color = color, modifier = Modifier.weight(1f))
-            if (hit != null) {
-                Text(if (hit) "✓" else "✗", style = MaterialTheme.typography.titleSmall, color = if (hit) Green else Coral, modifier = Modifier.padding(end = 12.dp))
-            }
-            TxChip(if (editing) "Done" else "Edit", selected = editing, onClick = { editing = !editing }, color = Ink)
-        }
-        if (target != null && actual != null) {
-            TxProgress((actual / target).toFloat(), color = if (hit == false) Coral else color)
-            Text(
-                (if (ceiling) "Limit " else "Target ") + Fmt.int(target.toLong()) + " $unit",
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-        if (!source.isNullOrEmpty()) SourceTag("Source: $source")
-        if (editing) {
-            TxTextField(
-                value = text,
-                onValueChange = { v -> text = v; onOverride(v) },
-                label = "Override (blank = use imported)",
-                unit = numericUnit,
-                numeric = true,
-            )
-        }
-    }
-}
-
-// ── Workout ──────────────────────────────────────────────────────────────────
-
-@Composable
-private fun WorkoutCard(
-    state: DayUiState,
-    isToday: Boolean,
-    update: ((DailyEntry) -> DailyEntry) -> Unit,
-    onStartWorkout: () -> Unit,
-    onOpenWorkout: (Long) -> Unit,
-) {
-    val d = state.day
-    ShadowCard {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                SectionLabel("Workout")
-                Text(
-                    when (d.workoutDone) {
-                        true -> "Done"
-                        false -> "Rest day"
-                        null -> "Not logged"
-                    },
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (d.workoutDone == true) MetricColors.Workout else Ink,
-                )
-            }
-            TxSwitch(checked = d.workoutDone == true, onCheckedChange = { v -> update { it.copy(workoutDone = v) } })
-        }
-        d.sources[Metric.WORKOUT]?.let { SourceTag("Source: ${Fmt.source(it)}") }
-        state.workouts.forEach { w ->
-            Column(
-                Modifier.fillMaxWidth().clickable { onOpenWorkout(w.workout.id) }.padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text(w.workout.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                    Text(
-                        WorkoutMath.formatDuration((w.workout.endedAt ?: w.workout.startedAt) - w.workout.startedAt) +
-                            " · ${WorkoutMath.kg(WorkoutMath.volume(w))} kg",
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-                WorkoutMath.exerciseLines(w).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-            }
-        }
-        // Best sets only for imported days with no logged workout (logged workouts already list their exercises).
-        if (state.workouts.isEmpty() && state.lifts.isNotEmpty()) {
-            SectionLabel("Best sets")
-            state.lifts.forEach { l ->
-                Row(Modifier.fillMaxWidth()) {
-                    Text(l.exercise, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Text("${Fmt.kg(l.weightKg)} kg × ${l.reps}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold)
-                }
-            }
-        }
-        if (state.activeWorkout != null) {
-            TxButton("RESUME WORKOUT", onClick = onStartWorkout, modifier = Modifier.fillMaxWidth())
-        } else if (isToday) {
-            TxButton("START WORKOUT", onClick = onStartWorkout, modifier = Modifier.fillMaxWidth())
-        }
-    }
 }
 
 @Composable

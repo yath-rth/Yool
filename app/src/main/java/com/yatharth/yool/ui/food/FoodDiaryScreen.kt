@@ -1,11 +1,8 @@
 package com.yatharth.yool.ui.food
 
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,13 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,7 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -53,10 +50,18 @@ import com.yatharth.yool.domain.Nutrients
 import com.yatharth.yool.domain.TargetHistory
 import com.yatharth.yool.domain.total
 import com.yatharth.yool.ui.Fmt
-import com.yatharth.yool.ui.components.ScreenTitle
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
+import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxActionSheet
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDialogButtons
+import com.yatharth.yool.ui.components.TxDivider
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxListGroup
+import com.yatharth.yool.ui.components.TxListRow
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.components.TxProgress
 import com.yatharth.yool.ui.components.TxChip
 import com.yatharth.yool.ui.components.TxSegmented
@@ -111,7 +116,8 @@ class FoodDiaryViewModel(
 fun FoodDiaryScreen(
     date: LocalDate,
     contentPadding: PaddingValues,
-    onBack: () -> Unit,
+    /** null when shown as the Food tab root. */
+    onBack: (() -> Unit)?,
     onAddFood: (Meal) -> Unit,
     onNavigateDay: (LocalDate) -> Unit,
     onOpenSavedMeals: () -> Unit,
@@ -126,38 +132,51 @@ fun FoodDiaryScreen(
     var editing by remember { mutableStateOf<FoodLogEntry?>(null) }
     var copyInto by remember { mutableStateOf<Meal?>(null) }
     var saveMeal by remember { mutableStateOf<Meal?>(null) }
+    var menuMeal by remember { mutableStateOf<Meal?>(null) }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
-            ScreenTitle("Food", Modifier.weight(1f), subtitle = Fmt.date(date))
-            NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "Previous day") { onNavigateDay(date.minusDays(1)) }
-            Spacer(Modifier.size(8.dp))
-            if (date.isBefore(LocalDate.now())) NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowRight, "Next day") { onNavigateDay(date.plusDays(1)) }
+    Column(Modifier.fillMaxSize().padding(contentPadding)) {
+        TxTopBar(
+            "Food", modifier = Modifier.padding(horizontal = 16.dp), subtitle = Fmt.date(date), onBack = onBack,
+            actions = {
+                TxIconButton(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "Previous day", { onNavigateDay(date.minusDays(1)) })
+                if (date.isBefore(LocalDate.now())) {
+                    Spacer(Modifier.size(8.dp))
+                    TxIconButton(Icons.AutoMirrored.Outlined.KeyboardArrowRight, "Next day", { onNavigateDay(date.plusDays(1)) })
+                }
+            },
+        )
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TotalsCard(state, date)
+
+            for (meal in Meal.entries) {
+                MealCard(
+                    meal = meal,
+                    entries = state.entriesFor(meal),
+                    onAdd = { onAddFood(meal) },
+                    onEntry = { editing = it },
+                    onMore = { menuMeal = meal },
+                )
+            }
+
+            TxListGroup {
+                TxListRow("Saved meals", onClick = onOpenSavedMeals, divider = false)
+            }
+            Spacer(Modifier.height(24.dp))
         }
+    }
 
-        TotalsCard(state, date)
-
-        for (meal in Meal.entries) {
-            MealCard(
-                meal = meal,
-                entries = state.entriesFor(meal),
-                onAdd = { onAddFood(meal) },
-                onEntry = { editing = it },
-                onCopy = { copyInto = meal },
-                onSave = { saveMeal = meal },
-            )
+    menuMeal?.let { meal ->
+        val actions = buildList<Pair<String, () -> Unit>> {
+            add("Copy from another day" to { copyInto = meal; menuMeal = null })
+            if (state.entriesFor(meal).isNotEmpty()) add("Save as meal" to { saveMeal = meal; menuMeal = null })
         }
-
-        TxButton("Saved meals", onClick = onOpenSavedMeals, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(24.dp))
+        TxActionSheet(meal.label, onDismiss = { menuMeal = null }, actions = actions)
     }
 
     editing?.let { entry ->
@@ -185,7 +204,7 @@ fun FoodDiaryScreen(
                     }
                 }
             }
-            TxButton("Cancel", { copyInto = null }, Modifier.fillMaxWidth())
+            TxButton("Cancel", { copyInto = null }, Modifier.fillMaxWidth(), fill = false)
         }
     }
 
@@ -193,29 +212,14 @@ fun FoodDiaryScreen(
         var name by remember { mutableStateOf("") }
         TxDialog("Save ${meal.label} as meal", onDismiss = { saveMeal = null }) {
             TxTextField(name, { name = it }, "Name", Modifier.fillMaxWidth(), maxLength = 40, placeholder = "e.g. Usual breakfast")
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TxButton("Cancel", { saveMeal = null }, Modifier.weight(1f))
-                TxButton("Save", {
-                    vm.saveAsMeal(meal, name) {
-                        Toast.makeText(context, "Saved \"${name.trim()}\"", Toast.LENGTH_SHORT).show()
-                    }
-                    saveMeal = null
-                }, Modifier.weight(1f), bg = Green, textColor = ItemsBg, enabled = name.isNotBlank())
-            }
+            TxDialogButtons("Save", {
+                vm.saveAsMeal(meal, name) {
+                    Toast.makeText(context, "Saved \"${name.trim()}\"", Toast.LENGTH_SHORT).show()
+                }
+                saveMeal = null
+            }, onDismiss = { saveMeal = null }, confirmEnabled = name.isNotBlank())
         }
     }
-}
-
-@Composable
-private fun NavArrow(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(36.dp)
-            .background(ItemsBg, RoundedCornerShape(4.dp))
-            .border(1.5.dp, Ink, RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Icon(icon, description, Modifier.size(18.dp)) }
 }
 
 @Composable
@@ -223,41 +227,31 @@ private fun TotalsCard(state: FoodDiaryUiState, date: LocalDate) {
     val t = state.total
     val calTarget = state.targets.valueOn(TargetMetric.CALORIES, date)
     val proTarget = state.targets.valueOn(TargetMetric.PROTEIN, date)
+    val over = calTarget != null && t.kcal > calTarget
     ShadowCard(Modifier.fillMaxWidth()) {
-        SectionLabel("Day total")
-        TargetRow("Calories", "${FoodInput.kcal(t.kcal)}", "kcal", calTarget, t.kcal, MetricColors.Calories, ceiling = true)
-        TargetRow("Protein", FoodInput.grams(t.proteinG), "g", proTarget, t.proteinG, MetricColors.Protein, ceiling = false)
-        Text(
-            "Carbs ${FoodInput.grams(t.carbsG)} g · Fat ${FoodInput.grams(t.fatG)} g · Fiber ${FoodInput.grams(t.fiberG)} g",
-            style = MaterialTheme.typography.labelMedium,
-        )
-    }
-}
-
-@Composable
-private fun TargetRow(label: String, value: String, unit: String, target: Double?, actual: Double, color: androidx.compose.ui.graphics.Color, ceiling: Boolean) {
-    val over = target != null && actual > target
-    val hit = target != null && if (ceiling) actual <= target else actual >= target
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f))
+            StatValue("Eaten", FoodInput.kcal(t.kcal), Modifier.weight(1f), unit = "kcal", color = if (over) Coral else Ink, big = true)
+            if (calTarget != null) {
+                val diff = Math.round(kotlin.math.abs(calTarget - t.kcal))
                 Text(
-                    "$value $unit",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (ceiling && over) Coral else Ink,
-                )
-            }
-            if (target != null) {
-                Text(
-                    "${if (ceiling) "of" else "goal"} ${FoodInput.num(target, 0)} $unit",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (hit && !ceiling) Green else Ink.copy(alpha = 0.7f),
+                    "${Fmt.int(diff)} ${if (over) "over" else "left"}",
+                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold,
+                    color = if (over) Coral else Ink,
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
         }
-        if (target != null && target > 0) {
-            TxProgress((actual / target).toFloat(), color = if (ceiling && over) Coral else if (!ceiling && hit) Green else color)
+        if (calTarget != null && calTarget > 0) {
+            TxProgress((t.kcal / calTarget).toFloat(), color = if (over) Coral else MetricColors.Calories)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatValue("Protein", FoodInput.grams(t.proteinG), Modifier.weight(1f), unit = "g")
+            StatValue("Carbs", FoodInput.grams(t.carbsG), Modifier.weight(1f), unit = "g")
+            StatValue("Fat", FoodInput.grams(t.fatG), Modifier.weight(1f), unit = "g")
+        }
+        if (proTarget != null && proTarget > 0) {
+            val hit = t.proteinG >= proTarget
+            TxProgress((t.proteinG / proTarget).toFloat(), color = if (hit) Green else MetricColors.Protein, height = 8.dp)
         }
     }
 }
@@ -268,46 +262,41 @@ private fun MealCard(
     entries: List<FoodLogEntry>,
     onAdd: () -> Unit,
     onEntry: (FoodLogEntry) -> Unit,
-    onCopy: () -> Unit,
-    onSave: () -> Unit,
+    onMore: () -> Unit,
 ) {
     ShadowCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(meal.label.uppercase(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-            Text("${FoodInput.kcal(entries.total().kcal)} kcal", style = MaterialTheme.typography.labelMedium, color = MetricColors.Calories)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                meal.label.uppercase(), style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f),
+            )
+            Text("${FoodInput.kcal(entries.total().kcal)} kcal", style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
+            TxIconButton(Icons.Outlined.Add, "Add to ${meal.label}", onAdd, size = 32.dp)
+            TxIconButton(Icons.Outlined.MoreVert, "${meal.label} options", onMore, size = 32.dp)
         }
         if (entries.isEmpty()) {
-            Text("Nothing logged.", style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.5f))
+            Text("Nothing logged", style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.5f))
         }
-        for (e in entries) {
+        entries.forEachIndexed { i, e ->
+            if (i > 0) TxDivider()
             Row(
                 Modifier.fillMaxWidth().clickable { onEntry(e) }.padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(e.nameSnapshot, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        e.nameSnapshot, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         FoodInput.servingsLabel(e.servings, e.servingLabelSnapshot),
-                        style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("${FoodInput.kcal(e.kcal)} kcal", style = MaterialTheme.typography.labelMedium, color = MetricColors.Calories)
-                    Text("${FoodInput.grams(e.proteinG)} g P", style = MaterialTheme.typography.labelSmall, color = MetricColors.Protein)
-                }
+                Text("${FoodInput.kcal(e.kcal)} kcal", style = MaterialTheme.typography.labelMedium)
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TxButton("+ Add", onAdd, Modifier.weight(1f))
-            TxButton("Copy from…", onCopy, Modifier.weight(1f))
-        }
-        if (entries.isNotEmpty()) {
-            Text(
-                "SAVE AS MEAL",
-                style = MaterialTheme.typography.labelMedium,
-                color = Coral,
-                modifier = Modifier.clickable(onClick = onSave).padding(vertical = 4.dp),
-            )
         }
     }
 }
@@ -342,14 +331,11 @@ private fun EntryDialog(entry: FoodLogEntry, vm: FoodDiaryViewModel, onDismiss: 
                 pair.forEach { m -> TxChip(m.label, m == meal, { meal = m }, Modifier.weight(1f)) }
             }
         }
-        TxButton("Save", {
+        TxDialogButtons("Save", {
             parsed?.let { p -> if (p != entry.servings) vm.setServings(entry.id, p) }
             if (meal != entry.meal) vm.move(entry.id, meal)
             onDismiss()
-        }, Modifier.fillMaxWidth(), bg = Green, textColor = ItemsBg, enabled = parsed != null)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TxButton("Delete", { vm.delete(entry.id); onDismiss() }, Modifier.weight(1f), textColor = Coral)
-            TxButton("Cancel", onDismiss, Modifier.weight(1f))
-        }
+        }, onDismiss, confirmEnabled = parsed != null)
+        TxButton("Delete", { vm.delete(entry.id); onDismiss() }, Modifier.fillMaxWidth(), fill = false, textColor = Coral)
     }
 }

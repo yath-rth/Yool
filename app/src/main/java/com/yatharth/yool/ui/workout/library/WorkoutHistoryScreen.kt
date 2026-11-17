@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,6 +32,7 @@ import com.yatharth.yool.ui.components.EmptyState
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
 import kotlinx.coroutines.Dispatchers
@@ -78,11 +80,19 @@ internal fun WorkoutCard(w: WorkoutFull, prs: Int?, onClick: () -> Unit, maxLine
             Text("${WorkoutMath.kg(Math.round(WorkoutMath.volume(w)).toDouble())} kg", style = MaterialTheme.typography.labelMedium)
             if (prs != null && prs > 0) Text("$prs PR", style = MaterialTheme.typography.labelMedium, color = Coral)
         }
-        val lines = exerciseLines(w)
-        lines.take(maxLines).forEach { Text(it, style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.85f)) }
-        if (lines.size > maxLines) Text("+${lines.size - maxLines} more", style = MaterialTheme.typography.labelSmall)
+        val names = w.ordered.map { it.exercise.name }
+        if (names.isNotEmpty()) {
+            Text(
+                summaryLine(names, maxLines.coerceAtMost(3)),
+                style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.85f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
+
+/** "Bench Press, Incline DB, +3 more" */
+internal fun summaryLine(names: List<String>, show: Int = 2): String =
+    names.take(show).joinToString(", ") + if (names.size > show) ", +${names.size - show} more" else ""
 
 /** Finished workouts, newest first, grouped by month. */
 @Composable
@@ -92,13 +102,13 @@ fun WorkoutHistoryScreen(contentPadding: PaddingValues, onBack: () -> Unit, onOp
     val state by vm.state.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
-        LibBackTitle("History", onBack, subtitle = state?.let { "${it.total} workouts" })
+        TxTopBar("History", subtitle = state?.let { "${it.total} workouts" }, onBack = onBack)
         val st = state
         if (st != null && st.total == 0) {
             EmptyState("No workouts yet", "Finished workouts will be listed here.")
         } else if (st != null) {
             val groups = groupByMonth(st.items) { it.workout.workout.date }
-            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 groups.forEach { g ->
                     item(key = "m-${g.month}") { SectionLabel(monthLabel(g.month)) }
                     items(g.items, key = { it.workout.workout.id }) { h ->
