@@ -1,6 +1,5 @@
 package com.yatharth.yool.ui.graphs
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,12 +38,14 @@ import com.yatharth.yool.domain.Stats
 import com.yatharth.yool.domain.Streaks
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.EmptyState
-import com.yatharth.yool.ui.components.ScreenTitle
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxBadge
+import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
 import com.yatharth.yool.ui.components.TxSegmented
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.insights.InsightsScreen
 import com.yatharth.yool.ui.day.moodColor
 import com.yatharth.yool.ui.theme.Amber
@@ -105,7 +106,7 @@ private fun GraphsContent(contentPadding: PaddingValues, header: @Composable () 
             ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ScreenTitle("Graphs", subtitle = "How things are trending")
+        TxTopBar("Progress")
         header()
         RangeSelector(selection, data?.let { it.from to it.to }, onChange = { vm.selection.value = it })
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -120,19 +121,19 @@ private fun GraphsContent(contentPadding: PaddingValues, header: @Composable () 
             GraphMetric.WEIGHT -> WeightSection(d)
             GraphMetric.CALORIES -> BarSection(
                 d, "Calories", MetricColors.Calories, TargetMetric.CALORIES, ceiling = true, unit = "kcal",
-                value = { it.calories?.toDouble() }, fmt = ::compact, targetHint = "Target is a daily limit; bars over it turn red.",
+                value = { it.calories?.toDouble() }, fmt = ::compact, targetHint = "Bars over the limit turn red.",
             )
             GraphMetric.PROTEIN -> BarSection(
                 d, "Protein", MetricColors.Protein, TargetMetric.PROTEIN, ceiling = false, unit = "g",
-                value = { it.proteinG }, fmt = ::compact, targetHint = "Target is a daily minimum.",
+                value = { it.proteinG }, fmt = ::compact, targetHint = "",
             )
             GraphMetric.STEPS -> BarSection(
                 d, "Steps", MetricColors.Steps, TargetMetric.STEPS, ceiling = false, unit = "steps",
-                value = { it.steps?.toDouble() }, fmt = ::compact, targetHint = "Target is a daily minimum.",
+                value = { it.steps?.toDouble() }, fmt = ::compact, targetHint = "",
             )
             GraphMetric.SLEEP -> BarSection(
                 d, "Sleep", MetricColors.Sleep, TargetMetric.SLEEP_HOURS, ceiling = false, unit = "h",
-                value = { it.sleepHours }, fmt = { Fmt.one(it) }, targetHint = "Target is a nightly minimum.",
+                value = { it.sleepHours }, fmt = { Fmt.one(it) }, targetHint = "",
             )
             GraphMetric.MOOD -> MoodSection(d)
             GraphMetric.BINGE -> BingeSection(d, if (d.to == LocalDate.now()) streak else Streaks.bingeFree(d.days, d.to))
@@ -161,7 +162,7 @@ private fun ChartCard(
     content: @Composable () -> Unit,
 ) {
     ShadowCard {
-        Text(title.uppercase(), style = MaterialTheme.typography.labelMedium)
+        SectionLabel(title)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), content = legend)
         Box(Modifier.padding(top = 4.dp)) { content() }
         if (caption != null) Text(caption, style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f))
@@ -196,7 +197,7 @@ private fun WeightSection(d: GraphData) {
     val long = rangeLength(d) > 90
     ChartCard(
         "Weight (kg)",
-        caption = if (long) "Long range: faint line is daily weight, solid line is the 7-day average." else null,
+        caption = if (long) "Faint line is daily, solid is the 7-day average." else null,
         legend = {
             LegendItem(MetricColors.Weight.copy(alpha = 0.45f), "Daily")
             LegendItem(MetricColors.Weight, "7d avg")
@@ -250,8 +251,8 @@ private fun BarSection(
         BarDatum(p.date, p.value, if (ceiling && t != null && p.value > t) Coral else color)
     }
     ChartCard(
-        if (weekly) "$title (weekly average)" else title,
-        caption = (if (weekly) "Long range: each bar is a weekly average. " else "") + if (steps.isNotEmpty()) targetHint else "No $title target set. Add one in Settings.",
+        if (weekly) "$title, weekly avg" else title,
+        caption = (if (steps.isNotEmpty()) targetHint else "No $title target set. Add one in Settings.").ifBlank { null },
         legend = {
             LegendItem(color, if (weekly) "Weekly avg" else "Daily")
             if (ceiling) LegendItem(Coral, "Over limit")
@@ -284,9 +285,7 @@ private fun MoodSection(d: GraphData) {
     val chartFrom = if (weekly) Stats.weekStart(d.from) else d.from
     val chartTo = if (weekly) Stats.weekStart(d.to).plusDays(6) else d.to
     ChartCard(
-        if (weekly) "Mood (weekly average)" else "Mood",
-        caption = if (weekly) "Long range: each point is a weekly average." else null,
-    ) {
+        if (weekly) "Mood, weekly avg" else "Mood") {
         TimeChart(
             chartFrom, chartTo,
             lines = listOf(
@@ -309,7 +308,7 @@ private fun MoodSection(d: GraphData) {
         color = MetricColors.Mood,
     )
     ShadowCard {
-        Text("DISTRIBUTION", style = MaterialTheme.typography.labelMedium)
+        SectionLabel("Distribution")
         for (m in 5 downTo 1) {
             HBarRow("Mood $m", (dist[m] ?: 0) / maxCount.toFloat(), "${dist[m] ?: 0}", moodColor(m))
         }
@@ -342,7 +341,7 @@ private fun BingeSection(d: GraphData, streak: Int) {
     if (triggers.isNotEmpty()) {
         val max = triggers.maxOf { it.second }.toFloat()
         ShadowCard {
-            Text("TRIGGERS", style = MaterialTheme.typography.labelMedium)
+            SectionLabel("Triggers")
             triggers.forEach { (name, n) -> HBarRow(name, n / max, "$n", Coral) }
         }
     }
@@ -355,7 +354,7 @@ private fun WorkoutSection(d: GraphData) {
     val weeks = Stats.workoutsPerWeek(d.days, d.from, d.to)
     val total = weeks.sumOf { it.value }.roundToInt()
     if (total == 0) return NoData("workouts")
-    ChartCard("Workouts per week", caption = "Bars are Monday-to-Sunday weeks.") {
+    ChartCard("Workouts per week") {
         TimeChart(
             Stats.weekStart(d.from), Stats.weekStart(d.to).plusDays(6),
             bars = weeks.map { BarDatum(it.date, it.value, MetricColors.Workout) },
@@ -389,7 +388,7 @@ private fun LiftSection(d: GraphData, exercises: List<String>, selected: String?
     if (sets.isEmpty()) return NoData("$current sets")
     val pr = sets.maxWith(compareBy({ it.weightKg }, { it.reps }, { it.date }))
     ChartCard(
-        "$current: top weight per session (kg)",
+        "$current, top set (kg)",
         legend = { LegendItem(MetricColors.Weight, "Top set"); LegendItem(Amber, "PR") },
     ) {
         TimeChart(
@@ -398,20 +397,19 @@ private fun LiftSection(d: GraphData, exercises: List<String>, selected: String?
             highlight = DatePoint(pr.date, pr.weightKg),
         )
     }
+    var showAll by rememberSaveable(current) { mutableStateOf(false) }
+    val recent = remember(sets) { sets.asReversed() }
     ShadowCard {
-        Text("SESSIONS", style = MaterialTheme.typography.labelMedium)
-        sets.asReversed().take(15).forEach { s ->
+        SectionLabel("Sessions")
+        (if (showAll) recent else recent.take(5)).forEach { s ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(Fmt.date(s.date), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                if (s == pr) {
-                    Text(
-                        "PR", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.background(Amber, RoundedCornerShape(2.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
-                    )
-                }
+                if (s == pr) TxBadge("PR", color = Amber, textColor = Ink)
                 Text("${Fmt.kg(s.weightKg).removeSuffix(".0")} kg × ${s.reps}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold)
             }
         }
-        if (sets.size > 15) Text("Showing the 15 most recent of ${sets.size}.", style = MaterialTheme.typography.labelSmall)
+        if (recent.size > 5) {
+            TxButton(if (showAll) "Show less" else "Show all (${recent.size})", onClick = { showAll = !showAll }, fill = false)
+        }
     }
 }
