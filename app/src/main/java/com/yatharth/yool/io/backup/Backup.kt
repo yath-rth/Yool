@@ -1,9 +1,13 @@
 package com.yatharth.yool.io.backup
 
 import com.yatharth.yool.data.db.DailyEntry
+import com.yatharth.yool.data.db.Food
+import com.yatharth.yool.data.db.FoodLogEntry
 import com.yatharth.yool.data.db.ImportedValue
 import com.yatharth.yool.data.db.LiftBestSet
 import com.yatharth.yool.data.db.TargetEntry
+import com.yatharth.yool.data.model.FoodSource
+import com.yatharth.yool.data.model.Meal
 import com.yatharth.yool.data.model.Metric
 import com.yatharth.yool.data.model.Source
 import com.yatharth.yool.data.model.TargetMetric
@@ -12,7 +16,7 @@ import kotlinx.serialization.json.Json
 import java.time.Instant
 import java.time.LocalDate
 
-/** Versioned JSON snapshot of all four tables. Schema documented in docs/backup-format.md. */
+/** Versioned JSON snapshot of all tables. Schema documented in docs/backup-format.md. */
 @Serializable
 data class BackupFile(
     val formatVersion: Int = Backup.FORMAT_VERSION,
@@ -21,7 +25,51 @@ data class BackupFile(
     val imported: List<ImportedDto> = emptyList(),
     val lifts: List<LiftDto> = emptyList(),
     val targets: List<TargetDto> = emptyList(),
+    val foods: List<FoodDto> = emptyList(),
+    val foodLog: List<FoodLogDto> = emptyList(),
+    val savedMeals: List<SavedMealDto> = emptyList(),
 )
+
+/** Nutrients per serving. [id] is only a reference key within this file. */
+@Serializable
+data class FoodDto(
+    val id: Long,
+    val name: String,
+    val brand: String? = null,
+    val servingLabel: String,
+    val servingGrams: Double? = null,
+    val kcal: Double,
+    val proteinG: Double = 0.0,
+    val carbsG: Double = 0.0,
+    val fatG: Double = 0.0,
+    val fiberG: Double = 0.0,
+    val archived: Boolean = false,
+    val createdAt: Long = 0,
+    val source: String = "USER",
+)
+
+/** Nutrients are entry totals (already × servings). */
+@Serializable
+data class FoodLogDto(
+    val date: String,
+    val meal: String,
+    val foodId: Long? = null,
+    val name: String,
+    val servingLabel: String = "",
+    val servings: Double = 1.0,
+    val kcal: Double,
+    val proteinG: Double = 0.0,
+    val carbsG: Double = 0.0,
+    val fatG: Double = 0.0,
+    val fiberG: Double = 0.0,
+    val createdAt: Long = 0,
+)
+
+@Serializable
+data class SavedMealDto(val name: String, val items: List<SavedMealItemDto> = emptyList())
+
+@Serializable
+data class SavedMealItemDto(val foodId: Long, val servings: Double)
 
 @Serializable
 data class EntryDto(
@@ -66,12 +114,16 @@ data class BackupData(
     val imported: List<ImportedValue>,
     val lifts: List<LiftBestSet>,
     val targets: List<TargetEntry>,
+    val foods: List<Food> = emptyList(),
+    val foodLog: List<FoodLogEntry> = emptyList(),
+    /** name → (backup food id, servings). */
+    val savedMeals: List<Pair<String, List<Pair<Long, Double>>>> = emptyList(),
 )
 
 class BackupException(message: String) : Exception(message)
 
 object Backup {
-    const val FORMAT_VERSION = 1
+    const val FORMAT_VERSION = 2
 
     private val json = Json {
         prettyPrint = true
@@ -97,6 +149,19 @@ object Backup {
             targets = data.targets.sortedWith(compareBy({ it.metric }, { it.effectiveFrom })).map {
                 TargetDto(it.metric.name, it.value, it.effectiveFrom.toString(), it.targetDate?.toString())
             },
+            foods = data.foods.sortedBy { it.id }.map {
+                FoodDto(
+                    it.id, it.name, it.brand, it.servingLabel, it.servingGrams, it.kcal, it.proteinG, it.carbsG, it.fatG, it.fiberG,
+                    it.archived, it.createdAt, it.source.name,
+                )
+            },
+            foodLog = data.foodLog.sortedWith(compareBy({ it.date }, { it.meal }, { it.createdAt })).map {
+                FoodLogDto(
+                    it.date.toString(), it.meal.name, it.foodId, it.nameSnapshot, it.servingLabelSnapshot, it.servings,
+                    it.kcal, it.proteinG, it.carbsG, it.fatG, it.fiberG, it.createdAt,
+                )
+            },
+            savedMeals = data.savedMeals.map { (name, items) -> SavedMealDto(name, items.map { SavedMealItemDto(it.first, it.second) }) },
         )
         return json.encodeToString(BackupFile.serializer(), file)
     }
@@ -130,6 +195,20 @@ object Backup {
                         targetDate = it.targetDate?.let(LocalDate::parse),
                     )
                 },
+                foods = file.foods.map {
+                    Food(
+                        it.id, it.name, it.brand, it.servingLabel, it.servingGrams, it.kcal, it.proteinG, it.carbsG, it.fatG, it.fiberG,
+                        it.archived, it.createdAt, FoodSource.valueOf(it.source),
+                    )
+                },
+                foodLog = file.foodLog.map {
+                    FoodLogEntry(
+                        date = LocalDate.parse(it.date), meal = Meal.valueOf(it.meal), foodId = it.foodId,
+                        nameSnapshot = it.name, servingLabelSnapshot = it.servingLabel, servings = it.servings,
+                        kcal = it.kcal, proteinG = it.proteinG, carbsG = it.carbsG, fatG = it.fatG, fiberG = it.fiberG, createdAt = it.createdAt,
+                    )
+                },
+                savedMeals = file.savedMeals.map { m -> m.name to m.items.map { it.foodId to it.servings } },
             )
         } catch (e: IllegalArgumentException) {
             throw BackupException("Backup contains an invalid value: ${e.message}")

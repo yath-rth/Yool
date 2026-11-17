@@ -9,6 +9,7 @@ import com.yatharth.yool.data.db.YoolDatabase
 import com.yatharth.yool.data.model.Metric
 import com.yatharth.yool.data.model.Source
 import com.yatharth.yool.domain.DayResolver
+import com.yatharth.yool.domain.FoodMath
 import com.yatharth.yool.domain.ResolvedDay
 import com.yatharth.yool.domain.TargetHistory
 import kotlinx.coroutines.flow.Flow
@@ -22,12 +23,14 @@ class TrackerRepository(private val db: YoolDatabase) {
     private val imported = db.importedValueDao()
     private val lifts = db.liftDao()
     private val targets = db.targetDao()
+    private val food = db.foodDao()
 
     // ── Resolved days ────────────────────────────────────────────────────────
 
+    /** Food-diary totals join imported values as source FOOD_LOG (ranked above MFP, below typed). */
     fun observeDays(from: LocalDate, to: LocalDate): Flow<List<ResolvedDay>> =
-        combine(entries.observeRange(from, to), imported.observeRange(from, to)) { e, i ->
-            DayResolver.resolveRange(from, to, e, i)
+        combine(entries.observeRange(from, to), imported.observeRange(from, to), food.observeTotals(from, to)) { e, i, f ->
+            DayResolver.resolveRange(from, to, e, i + FoodMath.asImported(f))
         }
 
     fun observeDay(date: LocalDate): Flow<ResolvedDay> =
@@ -84,6 +87,7 @@ class TrackerRepository(private val db: YoolDatabase) {
         listOfNotNull(
             entries.all().firstOrNull()?.date,
             imported.all().firstOrNull()?.date,
+            food.loggedDates().minOrNull(),
         ).minOrNull()
 
     suspend fun restore(

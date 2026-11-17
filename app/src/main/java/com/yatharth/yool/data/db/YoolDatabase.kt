@@ -1,6 +1,7 @@
 package com.yatharth.yool.data.db
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Query
@@ -82,9 +83,13 @@ interface TargetDao {
 }
 
 @Database(
-    entities = [DailyEntry::class, ImportedValue::class, LiftBestSet::class, TargetEntry::class],
-    version = 1,
+    entities = [
+        DailyEntry::class, ImportedValue::class, LiftBestSet::class, TargetEntry::class,
+        Food::class, FoodLogEntry::class, SavedMeal::class, SavedMealItem::class,
+    ],
+    version = 2,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)], // v2: food library, food log, saved meals
 )
 @TypeConverters(Converters::class)
 abstract class YoolDatabase : RoomDatabase() {
@@ -92,6 +97,7 @@ abstract class YoolDatabase : RoomDatabase() {
     abstract fun importedValueDao(): ImportedValueDao
     abstract fun liftDao(): LiftDao
     abstract fun targetDao(): TargetDao
+    abstract fun foodDao(): FoodDao
 
     companion object {
         fun build(context: Context): YoolDatabase =

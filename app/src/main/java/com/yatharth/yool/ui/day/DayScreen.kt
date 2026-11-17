@@ -75,6 +75,8 @@ fun DayScreen(
     contentPadding: PaddingValues,
     onNavigateDay: ((LocalDate) -> Unit)? = null,
     onBack: (() -> Unit)? = null,
+    /** Opens the food diary for a date (wired by feat/food-diary into the Nutrition card). */
+    onOpenFood: (LocalDate) -> Unit = {},
 ) {
     val repo = LocalContext.current.appContainer.repository
     val vm: DayViewModel = viewModel(key = "day-$date", factory = viewModelFactory { initializer { DayViewModel(repo, date) } })

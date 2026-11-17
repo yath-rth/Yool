@@ -38,7 +38,7 @@ class BackupTest {
 
     @Test fun formatUsesIsoDatesAndEnumNames() {
         val text = Backup.encode(data)
-        assertTrue(text.contains("\"formatVersion\": 1"))
+        assertTrue(text.contains("\"formatVersion\": 2"))
         assertTrue(text.contains("\"date\": \"2026-11-17\""))
         assertTrue(text.contains("\"source\": \"MIGRATED\""))
         assertTrue(text.contains("\"metric\": \"WEIGHT_GOAL\""))
@@ -54,7 +54,7 @@ class BackupTest {
     }
 
     @Test(expected = BackupException::class) fun rejectsNewerVersion() {
-        Backup.decode("""{"formatVersion":2,"exportedAt":"x"}""")
+        Backup.decode("""{"formatVersion":3,"exportedAt":"x"}""")
     }
 
     @Test(expected = BackupException::class) fun rejectsGarbage() {
