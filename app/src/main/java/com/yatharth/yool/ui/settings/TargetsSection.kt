@@ -1,16 +1,16 @@
 package com.yatharth.yool.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -28,14 +28,18 @@ import com.yatharth.yool.data.db.TargetEntry
 import com.yatharth.yool.data.model.TargetMetric
 import com.yatharth.yool.domain.TargetHistory
 import com.yatharth.yool.ui.Fmt
-import com.yatharth.yool.ui.components.SectionLabel
-import com.yatharth.yool.ui.components.ShadowCard
-import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
+import com.yatharth.yool.ui.components.TxCollapsible
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDialogButtons
+import com.yatharth.yool.ui.components.TxListGroup
+import com.yatharth.yool.ui.components.TxListRow
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.settings.targets.requiredWeeklyRateKg
+import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
+import com.yatharth.yool.ui.theme.ItemsBg
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -60,61 +64,55 @@ fun TargetsSection() {
     }.collectAsState(initial = null)
 
     var editing by remember { mutableStateOf<TargetMetric?>(null) }
-    var expanded by remember { mutableStateOf<TargetMetric?>(null) }
 
-    ShadowCard {
-        SectionLabel("Targets")
-        TargetMetric.entries.forEach { metric ->
+    TxListGroup {
+        val metrics = TargetMetric.entries
+        metrics.forEachIndexed { index, metric ->
             val current = history.current(metric)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatValue(
-                        label = metric.label + if (metric == TargetMetric.CALORIES) " (max)" else "",
-                        value = current?.let { fmtValue(metric, it.value) } ?: "—",
-                        unit = metric.unit,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TxChip("Edit", selected = false, onClick = { editing = if (editing == metric) null else metric })
-                }
-                val goalDate = current?.targetDate
-                if (metric == TargetMetric.WEIGHT_GOAL && current != null && goalDate != null) {
-                    Text("By ${Fmt.date(goalDate)}", style = MaterialTheme.typography.bodySmall)
-                    val latest = latestWeight
-                    val rate = requiredWeeklyRateKg(latest, current.value, goalDate, today)
-                    if (rate != null && latest != null) {
-                        Text(
-                            String.format(Locale.US, "Needs %+.2f kg/week from %.1f kg", rate, latest),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-                if (editing == metric) {
-                    TargetEditor(
-                        metric = metric,
-                        initial = current,
-                        today = today,
-                        onCancel = { editing = null },
-                        onSave = { entry -> scope.launch { repo.upsertTarget(entry); editing = null } },
-                    )
-                }
-                val entries = history.history(metric)
-                if (entries.isNotEmpty()) {
-                    Text(
-                        (if (expanded == metric) "Hide history" else "History (${entries.size})").uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.clickable { expanded = if (expanded == metric) null else metric },
-                    )
-                }
-                if (expanded == metric) {
+            val goalDate = current?.targetDate
+            var subtitle: String? = null
+            if (metric == TargetMetric.WEIGHT_GOAL && current != null && goalDate != null) {
+                subtitle = "By ${Fmt.date(goalDate)}"
+                val rate = requiredWeeklyRateKg(latestWeight, current.value, goalDate, today)
+                if (rate != null) subtitle += String.format(Locale.US, " · needs %+.2f kg/week", rate)
+            }
+            TxListRow(
+                title = metric.label + if (metric == TargetMetric.CALORIES) " (max)" else "",
+                onClick = { editing = metric },
+                subtitle = subtitle,
+                value = current?.let { fmtValue(metric, it.value) + " " + metric.unit } ?: "—",
+                divider = index < metrics.lastIndex,
+            )
+        }
+    }
+
+    editing?.let { metric ->
+        val current = history.current(metric)
+        TxDialog(metric.label, onDismiss = { editing = null }) {
+            TargetEditor(
+                metric = metric,
+                initial = current,
+                today = today,
+                onCancel = { editing = null },
+                onSave = { entry -> scope.launch { repo.upsertTarget(entry); editing = null } },
+            )
+            val entries = history.history(metric)
+            if (entries.isNotEmpty()) {
+                TxCollapsible("History (${entries.size})", key = "target-history-${metric.name}") {
                     entries.asReversed().forEach { e ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "${fmtValue(metric, e.value)} ${metric.unit}" + (e.targetDate?.let { " · by ${Fmt.date(it)}" } ?: ""),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Text("from ${Fmt.date(e.effectiveFrom)}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(end = 8.dp))
-                            TxChip("Delete", selected = false, onClick = { scope.launch { repo.deleteTarget(e.id) } })
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "${fmtValue(metric, e.value)} ${metric.unit}" + (e.targetDate?.let { " · by ${Fmt.date(it)}" } ?: ""),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text("from ${Fmt.date(e.effectiveFrom)}", style = MaterialTheme.typography.labelSmall, color = Ink.copy(alpha = 0.7f))
+                            }
+                            TxButton("Delete", onClick = { scope.launch { repo.deleteTarget(e.id) } }, fill = false)
                         }
                     }
                 }
@@ -123,6 +121,7 @@ fun TargetsSection() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TargetEditor(
     metric: TargetMetric,
@@ -150,15 +149,12 @@ private fun TargetEditor(
                 if (targetDate != null) TxChip("Clear", selected = false, onClick = { targetDate = null })
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TxButton("Cancel", onCancel, Modifier.weight(1f))
-            TxButton(
-                "Save",
-                onClick = { value?.let { onSave(TargetEntry(metric = metric, value = it, effectiveFrom = from, targetDate = targetDate)) } },
-                modifier = Modifier.weight(1f),
-                enabled = value != null && value > 0,
-            )
-        }
+        TxDialogButtons(
+            confirmLabel = "Save",
+            onConfirm = { value?.let { onSave(TargetEntry(metric = metric, value = it, effectiveFrom = from, targetDate = targetDate)) } },
+            onDismiss = onCancel,
+            confirmEnabled = value != null && value > 0,
+        )
     }
 
     picking?.let { which ->
@@ -167,15 +163,36 @@ private fun TargetEditor(
         DatePickerDialog(
             onDismissRequest = { picking = null },
             confirmButton = {
-                TextButton(onClick = {
+                TxButton("OK", fill = false, onClick = {
                     state.selectedDateMillis?.let { ms ->
                         val d = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate()
                         if (which == "from") from = d else targetDate = d
                     }
                     picking = null
-                }) { Text("OK", color = Ink) }
+                })
             },
-            dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel", color = Ink) } },
-        ) { DatePicker(state) }
+            dismissButton = { TxButton("Cancel", fill = false, onClick = { picking = null }) },
+            colors = txDatePickerColors(),
+        ) { DatePicker(state, colors = txDatePickerColors()) }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun txDatePickerColors() = DatePickerDefaults.colors(
+    containerColor = ItemsBg,
+    titleContentColor = Ink,
+    headlineContentColor = Ink,
+    weekdayContentColor = Ink.copy(alpha = 0.7f),
+    subheadContentColor = Ink,
+    navigationContentColor = Ink,
+    yearContentColor = Ink,
+    currentYearContentColor = Ink,
+    selectedYearContainerColor = Coral,
+    selectedYearContentColor = ItemsBg,
+    dayContentColor = Ink,
+    selectedDayContainerColor = Coral,
+    selectedDayContentColor = ItemsBg,
+    todayContentColor = Ink,
+    todayDateBorderColor = Ink,
+)
