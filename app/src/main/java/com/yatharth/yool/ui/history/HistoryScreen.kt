@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,8 +31,10 @@ import com.yatharth.yool.appContainer
 import com.yatharth.yool.data.TrackerRepository
 import com.yatharth.yool.domain.ResolvedDay
 import com.yatharth.yool.ui.Fmt
-import com.yatharth.yool.ui.components.ScreenTitle
+import com.yatharth.yool.ui.components.EmptyState
+import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.day.moodColor
 import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Green
@@ -61,17 +64,30 @@ fun HistoryScreen(contentPadding: PaddingValues, onOpenDay: (LocalDate) -> Unit,
     val vm: HistoryViewModel = viewModel(factory = viewModelFactory { initializer { HistoryViewModel(repo) } })
     val days by vm.days.collectAsStateWithLifecycle()
 
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 16.dp, end = 16.dp,
-            top = contentPadding.calculateTopPadding() + 8.dp,
-            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item { ScreenTitle("History", subtitle = "Tap a day to edit it") }
-        items(days, key = { it.date.toEpochDay() }) { d -> DayRow(d) { onOpenDay(d.date) } }
+    val grouped = days.groupBy { java.time.YearMonth.from(it.date) }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Column(Modifier.padding(top = contentPadding.calculateTopPadding())) {
+            TxTopBar("History", subtitle = "Tap a day to edit", onBack = onBack)
+        }
+        if (days.isEmpty()) {
+            EmptyState("No days yet", "Log something on the Today tab and it will show up here.", Modifier.padding(top = 24.dp))
+            return@Column
+        }
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 8.dp, bottom = contentPadding.calculateBottomPadding() + 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            grouped.forEach { (month, list) ->
+                item(key = "m-$month") {
+                    SectionLabel(
+                        month.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault()).uppercase() + " " + month.year,
+                    )
+                }
+                items(list, key = { it.date.toEpochDay() }) { d -> DayRow(d) { onOpenDay(d.date) } }
+            }
+        }
     }
 }
 
@@ -80,7 +96,7 @@ private fun DayRow(d: ResolvedDay, onClick: () -> Unit) {
     ShadowCard(shadow = 3.dp, contentPadding = 12.dp, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(Modifier.weight(1f)) {
-                Text(Fmt.date(d.date), style = MaterialTheme.typography.bodyMedium)
+                Text(Fmt.date(d.date), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.ExtraBold)
                 Text(
                     listOfNotNull(
                         d.weightKg?.let { "${Fmt.kg(it)}kg" },
@@ -88,7 +104,7 @@ private fun DayRow(d: ResolvedDay, onClick: () -> Unit) {
                         d.steps?.let { "${Fmt.int(it)}st" },
                         d.sleepHours?.let { "${Fmt.one(it)}h" },
                         if (d.workoutDone == true) "lift" else null,
-                    ).joinToString(" · ").ifEmpty { "—" },
+                    ).take(4).joinToString(" · ").ifEmpty { "—" },
                     style = MaterialTheme.typography.labelSmall,
                     color = Ink.copy(alpha = 0.8f),
                 )
