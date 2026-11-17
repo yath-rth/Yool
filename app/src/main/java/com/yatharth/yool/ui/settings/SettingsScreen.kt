@@ -16,7 +16,11 @@ import com.yatharth.yool.ui.components.ScreenTitle
 
 /** Settings is a column of independent sections; each lives in its own file. */
 @Composable
-fun SettingsScreen(contentPadding: PaddingValues) {
+fun SettingsScreen(
+    contentPadding: PaddingValues,
+    onOpenFoodLibrary: () -> Unit = {},
+    onOpenSavedMeals: () -> Unit = {},
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -27,6 +31,7 @@ fun SettingsScreen(contentPadding: PaddingValues) {
     ) {
         ScreenTitle("Settings")
         TargetsSection()
+        FoodSection(onOpenFoodLibrary, onOpenSavedMeals)
         HealthConnectSection()
         RemindersSection()
         DataSection()
