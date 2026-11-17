@@ -11,6 +11,18 @@ import com.yatharth.yool.data.model.Meal
 import com.yatharth.yool.data.model.Metric
 import com.yatharth.yool.data.model.Source
 import com.yatharth.yool.data.model.TargetMetric
+import com.yatharth.yool.data.ImportedTemplate
+import com.yatharth.yool.data.ImportedWorkout
+import com.yatharth.yool.data.ImportedWorkoutExercise
+import com.yatharth.yool.data.db.Exercise
+import com.yatharth.yool.data.db.Workout
+import com.yatharth.yool.data.db.WorkoutSet
+import com.yatharth.yool.data.model.BodyPart
+import com.yatharth.yool.data.model.ExerciseType
+import com.yatharth.yool.data.model.SetType
+import com.yatharth.yool.data.model.WorkoutSource
+import com.yatharth.yool.domain.ExerciseSpec
+import com.yatharth.yool.domain.SetSpec
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.time.Instant
@@ -28,6 +40,63 @@ data class BackupFile(
     val foods: List<FoodDto> = emptyList(),
     val foodLog: List<FoodLogDto> = emptyList(),
     val savedMeals: List<SavedMealDto> = emptyList(),
+    val exercises: List<ExerciseDto> = emptyList(),
+    val templates: List<TemplateDto> = emptyList(),
+    val workouts: List<WorkoutDto> = emptyList(),
+)
+
+@Serializable
+data class ExerciseDto(
+    val name: String,
+    val type: String,
+    val bodyPart: String,
+    val restSec: Int? = null,
+    val note: String? = null,
+    val archived: Boolean = false,
+    val createdAt: Long = 0,
+    val source: String = "USER",
+)
+
+/** A set in a template or workout. `completed`/`rpe` are only meaningful for workouts. */
+@Serializable
+data class SetDto(
+    val type: String = "NORMAL",
+    val weightKg: Double? = null,
+    val reps: Int? = null,
+    val durationSec: Int? = null,
+    val distanceM: Double? = null,
+    val rpe: Double? = null,
+    val restSec: Int? = null,
+    val completed: Boolean = true,
+    val completedAt: Long? = null,
+)
+
+/** An exercise inside a template or workout; [exercise] is the exercise name. */
+@Serializable
+data class ExerciseEntryDto(
+    val exercise: String,
+    val supersetGroup: Int? = null,
+    val note: String? = null,
+    val sets: List<SetDto> = emptyList(),
+)
+
+@Serializable
+data class TemplateDto(
+    val name: String,
+    val folder: String? = null,
+    val note: String? = null,
+    val exercises: List<ExerciseEntryDto> = emptyList(),
+)
+
+/** Times are epoch millis. Only finished workouts are backed up. */
+@Serializable
+data class WorkoutDto(
+    val name: String,
+    val startedAt: Long,
+    val endedAt: Long,
+    val note: String? = null,
+    val source: String = "USER",
+    val exercises: List<ExerciseEntryDto> = emptyList(),
 )
 
 /** Nutrients per serving. [id] is only a reference key within this file. */
@@ -118,12 +187,15 @@ data class BackupData(
     val foodLog: List<FoodLogEntry> = emptyList(),
     /** name → (backup food id, servings). */
     val savedMeals: List<Pair<String, List<Pair<Long, Double>>>> = emptyList(),
+    val exercises: List<Exercise> = emptyList(),
+    val templates: List<ImportedTemplate> = emptyList(),
+    val workouts: List<ImportedWorkout> = emptyList(),
 )
 
 class BackupException(message: String) : Exception(message)
 
 object Backup {
-    const val FORMAT_VERSION = 2
+    const val FORMAT_VERSION = 3
 
     private val json = Json {
         prettyPrint = true
@@ -162,6 +234,23 @@ object Backup {
                 )
             },
             savedMeals = data.savedMeals.map { (name, items) -> SavedMealDto(name, items.map { SavedMealItemDto(it.first, it.second) }) },
+            exercises = data.exercises.sortedBy { it.name.lowercase() }.map {
+                ExerciseDto(it.name, it.type.name, it.bodyPart.name, it.restSec, it.note, it.archived, it.createdAt, it.source.name)
+            },
+            templates = data.templates.map { t ->
+                TemplateDto(t.name, t.folder, t.note, t.exercises.map { (name, spec) ->
+                    ExerciseEntryDto(name, spec.supersetGroup, spec.note, spec.sets.map {
+                        SetDto(it.type.name, it.weightKg, it.reps, it.durationSec, it.distanceM, null, it.restSec)
+                    })
+                })
+            },
+            workouts = data.workouts.filter { it.workout.endedAt != null }.sortedBy { it.workout.startedAt }.map { w ->
+                WorkoutDto(w.workout.name, w.workout.startedAt, w.workout.endedAt!!, w.workout.note, w.workout.source.name, w.exercises.map { e ->
+                    ExerciseEntryDto(e.name, e.supersetGroup, e.note, e.sets.sortedBy { it.position }.map {
+                        SetDto(it.type.name, it.weightKg, it.reps, it.durationSec, it.distanceM, it.rpe, it.restSec, it.completed, it.completedAt)
+                    })
+                })
+            },
         )
         return json.encodeToString(BackupFile.serializer(), file)
     }
@@ -209,6 +298,36 @@ object Backup {
                     )
                 },
                 savedMeals = file.savedMeals.map { m -> m.name to m.items.map { it.foodId to it.servings } },
+                exercises = file.exercises.map {
+                    Exercise(
+                        name = it.name, type = ExerciseType.valueOf(it.type), bodyPart = BodyPart.valueOf(it.bodyPart), restSec = it.restSec,
+                        note = it.note, archived = it.archived, createdAt = it.createdAt, source = WorkoutSource.valueOf(it.source),
+                    )
+                },
+                templates = file.templates.map { t ->
+                    ImportedTemplate(t.name, t.folder, t.note, t.exercises.map { e ->
+                        e.exercise to ExerciseSpec(
+                            0,
+                            e.sets.map { SetSpec(SetType.valueOf(it.type), it.weightKg, it.reps, it.durationSec, it.distanceM, it.restSec) },
+                            e.supersetGroup, e.note,
+                        )
+                    })
+                },
+                workouts = file.workouts.map { w ->
+                    ImportedWorkout(
+                        // date is recomputed from startedAt in the local zone on import.
+                        Workout(name = w.name, date = LocalDate.EPOCH, startedAt = w.startedAt, endedAt = w.endedAt, note = w.note, source = WorkoutSource.valueOf(w.source)),
+                        w.exercises.map { e ->
+                            ImportedWorkoutExercise(e.exercise, e.sets.mapIndexed { i, s ->
+                                WorkoutSet(
+                                    workoutExerciseId = 0, position = i, type = SetType.valueOf(s.type), weightKg = s.weightKg, reps = s.reps,
+                                    durationSec = s.durationSec, distanceM = s.distanceM, rpe = s.rpe, restSec = s.restSec,
+                                    completed = s.completed, completedAt = s.completedAt,
+                                )
+                            }, e.note, e.supersetGroup)
+                        },
+                    )
+                },
             )
         } catch (e: IllegalArgumentException) {
             throw BackupException("Backup contains an invalid value: ${e.message}")

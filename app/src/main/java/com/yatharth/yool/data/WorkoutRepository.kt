@@ -13,6 +13,8 @@ import com.yatharth.yool.data.db.WorkoutFull
 import com.yatharth.yool.data.db.WorkoutSet
 import com.yatharth.yool.data.db.WorkoutTemplate
 import com.yatharth.yool.data.db.YoolDatabase
+import com.yatharth.yool.data.model.BodyPart
+import com.yatharth.yool.data.model.ExerciseType
 import com.yatharth.yool.data.model.SetType
 import com.yatharth.yool.domain.ExerciseSpec
 import com.yatharth.yool.domain.SetSpec
@@ -352,6 +354,36 @@ class WorkoutRepository(private val db: YoolDatabase, private val zone: () -> Zo
     suspend fun allFolders() = dao.allFolders()
     suspend fun allTemplates() = dao.allTemplates()
     suspend fun allWorkouts() = dao.allWorkouts()
+
+    /** Templates as name-referenced specs (for backup). */
+    suspend fun templatesForBackup(): List<ImportedTemplate> {
+        val folders = dao.allFolders().associate { it.id to it.name }
+        return dao.allTemplates().map { t ->
+            ImportedTemplate(
+                t.template.name, t.template.folderId?.let(folders::get), t.template.note,
+                t.ordered.zip(WorkoutMath.specsOf(t)).map { (te, spec) -> te.exercise.name to spec },
+            )
+        }
+    }
+
+    /** Finished workouts with exercises referenced by name (for backup). */
+    suspend fun workoutsForBackup(): List<ImportedWorkout> = dao.allWorkouts().map { w ->
+        ImportedWorkout(w.workout, w.ordered.map { ImportedWorkoutExercise(it.exercise.name, it.orderedSets, it.entry.note, it.entry.supersetGroup) })
+    }
+
+    /** Restore everything workout-related from a backup (merge; never duplicates). Returns workouts added. */
+    suspend fun restore(exercises: List<Exercise>, templates: List<ImportedTemplate>, workouts: List<ImportedWorkout>): Int {
+        restoreExercises(exercises)
+        val byName = exercises.associateBy { it.name.lowercase() }
+        fun fallback(name: String) = byName[name.lowercase()] ?: Exercise(name = name, type = ExerciseType.MACHINE, bodyPart = BodyPart.OTHER)
+        val added = importWorkouts(workouts, ::fallback)
+        // Templates may reference exercises that appear nowhere else.
+        for (t in templates) for ((name, _) in t.exercises) {
+            if (dao.findExercise(name) == null) dao.insertExercise(fallback(name).copy(id = 0, name = name))
+        }
+        restoreTemplates(templates)
+        return added
+    }
 
     /**
      * Merge workouts (import or restore). Exercises are matched by name (case-insensitive) and created
