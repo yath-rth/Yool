@@ -22,6 +22,14 @@ interface WorkoutDao {
     )
     fun observeExercises(includeArchived: Boolean): Flow<List<Exercise>>
 
+    /** Number of finished workouts each exercise appears in. */
+    @Query(
+        """SELECT we.exerciseId AS exerciseId, COUNT(DISTINCT we.workoutId) AS count
+           FROM workout_exercise we JOIN workout w ON w.id = we.workoutId
+           WHERE w.endedAt IS NOT NULL GROUP BY we.exerciseId""",
+    )
+    fun observeExerciseUseCounts(): Flow<List<ExerciseUseCount>>
+
     @Query("SELECT * FROM exercise WHERE id = :id")
     fun observeExercise(id: Long): Flow<Exercise?>
 
@@ -241,3 +249,6 @@ interface WorkoutDao {
     )
     fun observeLoggedExerciseNames(): Flow<List<String>>
 }
+
+/** Finished workouts an exercise was performed in. */
+data class ExerciseUseCount(val exerciseId: Long, val count: Int)

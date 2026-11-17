@@ -22,6 +22,7 @@ import com.yatharth.yool.domain.WorkoutMath
 import com.yatharth.yool.domain.WorkoutSummary
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -37,6 +38,8 @@ class WorkoutRepository(private val db: YoolDatabase, private val zone: () -> Zo
     // ── Exercises ────────────────────────────────────────────────────────────
 
     fun observeExercises(includeArchived: Boolean = false): Flow<List<Exercise>> = dao.observeExercises(includeArchived)
+    /** exerciseId to number of finished workouts it was performed in. */
+    fun observeExerciseUseCounts(): Flow<Map<Long, Int>> = dao.observeExerciseUseCounts().map { rows -> rows.associate { it.exerciseId to it.count } }
     fun observeExercise(id: Long): Flow<Exercise?> = dao.observeExercise(id)
     suspend fun getExercise(id: Long): Exercise? = dao.getExercise(id)
 
