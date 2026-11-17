@@ -2,7 +2,7 @@ package com.yatharth.yool.ui.graphs
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,6 +20,7 @@ import com.yatharth.yool.domain.RangePreset
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxSegmented
+import com.yatharth.yool.ui.theme.Coral
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.theme.ItemsBg
 import java.time.Instant
@@ -64,6 +65,25 @@ fun RangeSelector(
             initialSelectedStartDateMillis = selection.customFrom?.toUtcMillis(),
             initialSelectedEndDateMillis = selection.customTo?.toUtcMillis(),
         )
+        val colors = DatePickerDefaults.colors(
+            containerColor = ItemsBg,
+            titleContentColor = Ink,
+            headlineContentColor = Ink,
+            weekdayContentColor = Ink.copy(alpha = 0.7f),
+            subheadContentColor = Ink,
+            navigationContentColor = Ink,
+            yearContentColor = Ink,
+            currentYearContentColor = Ink,
+            selectedYearContainerColor = Coral,
+            selectedYearContentColor = ItemsBg,
+            dayContentColor = Ink,
+            selectedDayContainerColor = Coral,
+            selectedDayContentColor = ItemsBg,
+            todayContentColor = Ink,
+            todayDateBorderColor = Ink,
+            dayInSelectionRangeContainerColor = Coral.copy(alpha = 0.25f),
+            dayInSelectionRangeContentColor = Ink,
+        )
         DatePickerDialog(
             onDismissRequest = { picking = false },
             confirmButton = {
@@ -76,14 +96,16 @@ fun RangeSelector(
                         picking = false
                     },
                     enabled = state.selectedStartDateMillis != null,
-                    modifier = Modifier.width(110.dp).padding(end = 8.dp, bottom = 8.dp),
+                    fill = false,
+                    modifier = Modifier.padding(end = 8.dp, bottom = 8.dp),
                 )
             },
             dismissButton = {
-                TxButton("Cancel", onClick = { picking = false }, modifier = Modifier.width(110.dp).padding(end = 8.dp, bottom = 8.dp))
+                TxButton("Cancel", onClick = { picking = false }, fill = false, modifier = Modifier.padding(end = 8.dp, bottom = 8.dp))
             },
+            colors = colors,
         ) {
-            DateRangePicker(state, modifier = Modifier.weight(1f, fill = false))
+            DateRangePicker(state, modifier = Modifier.weight(1f, fill = false), colors = colors)
         }
     }
 }
