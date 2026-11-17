@@ -3,7 +3,6 @@ package com.yatharth.yool.ui.food
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,8 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,11 +20,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.clickable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -41,16 +37,17 @@ import com.yatharth.yool.data.model.Meal
 import com.yatharth.yool.domain.FoodMath
 import com.yatharth.yool.domain.perServing
 import com.yatharth.yool.ui.components.EmptyState
-import com.yatharth.yool.ui.components.ScreenTitle
-import com.yatharth.yool.ui.components.SectionLabel
-import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
+import com.yatharth.yool.ui.components.TxDialog
+import com.yatharth.yool.ui.components.TxDialogButtons
+import com.yatharth.yool.ui.components.TxIconButton
+import com.yatharth.yool.ui.components.TxListGroup
+import com.yatharth.yool.ui.components.TxListRow
+import com.yatharth.yool.ui.components.TxTopBar
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
-import com.yatharth.yool.ui.theme.Green
 import com.yatharth.yool.ui.theme.Ink
 import com.yatharth.yool.ui.theme.ItemsBg
-import com.yatharth.yool.ui.theme.MetricColors
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -118,48 +115,54 @@ fun FoodSearchScreen(
     var query by remember { mutableStateOf("") }
     val searching = query.isNotBlank()
 
-    Column(
-        Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
-            ScreenTitle("Add food", Modifier.weight(1f), subtitle = "${meal.label} Â· ${com.yatharth.yool.ui.Fmt.date(date)}")
-        }
-        TxTextField(query, { query = it; vm.setQuery(it) }, "Search foods", Modifier.fillMaxWidth(), placeholder = "e.g. oats")
-        TxButton("+ New food", onClick = onNewFood, bg = Coral, textColor = ItemsBg, modifier = Modifier.fillMaxWidth())
+    Column(Modifier.fillMaxSize().padding(contentPadding)) {
+        TxTopBar(
+            "Add food", subtitle = "${meal.label} · ${com.yatharth.yool.ui.Fmt.date(date)}", onBack = onBack,
+            actions = { TxIconButton(Icons.Outlined.Add, "New food", onNewFood) },
+        )
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            TxTextField(query, { query = it; vm.setQuery(it) }, "Search foods", Modifier.fillMaxWidth(), placeholder = "e.g. oats")
 
-        if (state.libraryEmpty == true && state.savedMeals.isEmpty()) {
-            EmptyState("No foods yet", "Add your first food with + NEW FOOD. It's saved to your library for next time.")
-        } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (searching) {
-                if (state.results.isEmpty()) item { Text("No matches. Try + NEW FOOD.", style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.7f)) }
-                items(state.results, key = { "r${it.id}" }) { FoodRow(it) { f -> picked = f } }
-            } else {
-                if (state.savedMeals.isNotEmpty()) {
-                    item { SectionLabel("Saved meals") }
-                    items(state.savedMeals, key = { "m${it.meal.id}" }) { m ->
-                        val kcal = m.items.sumOf { it.food.kcal * it.item.servings }
-                        ShadowCard(Modifier.fillMaxWidth(), shadow = 3.dp, contentPadding = 12.dp, onClick = {
-                            vm.logSavedMeal(m.meal.id, date, meal, onBack)
-                        }) {
-                            Text(m.meal.name, style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "${m.items.size} ${if (m.items.size == 1) "item" else "items"} Â· ${FoodInput.kcal(kcal)} kcal",
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+            if (state.libraryEmpty == true && state.savedMeals.isEmpty()) {
+                EmptyState("No foods yet", "Add your first food. It's saved to your library for next time.")
+                TxButton("New food", onNewFood, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg, icon = Icons.Outlined.Add)
+            } else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (searching) {
+                    if (state.results.isEmpty()) {
+                        item {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("No matches", style = MaterialTheme.typography.bodyMedium, color = Ink.copy(alpha = 0.7f))
+                                TxButton("New food", onNewFood, Modifier.fillMaxWidth(), bg = Coral, textColor = ItemsBg, icon = Icons.Outlined.Add)
+                            }
+                        }
+                    } else {
+                        item { FoodGroup(null, state.results) { picked = it } }
+                    }
+                } else {
+                    if (state.savedMeals.isNotEmpty()) {
+                        item {
+                            TxListGroup(title = "Saved meals") {
+                                state.savedMeals.forEachIndexed { i, m ->
+                                    val kcal = m.items.sumOf { it.food.kcal * it.item.servings }
+                                    TxListRow(
+                                        m.meal.name,
+                                        onClick = { vm.logSavedMeal(m.meal.id, date, meal, onBack) },
+                                        subtitle = "${m.items.size} ${if (m.items.size == 1) "item" else "items"}",
+                                        value = "${FoodInput.kcal(kcal)} kcal",
+                                        chevron = false,
+                                        divider = i < state.savedMeals.lastIndex,
+                                    )
+                                }
+                            }
                         }
                     }
+                    if (state.recent.isNotEmpty()) item { FoodGroup("Recent", state.recent) { picked = it } }
+                    if (state.frequent.isNotEmpty()) item { FoodGroup("Frequent (last 60 days)", state.frequent) { picked = it } }
+                    item { Spacer(Modifier.height(24.dp)) }
                 }
-                if (state.recent.isNotEmpty()) {
-                    item { SectionLabel("Recent") }
-                    items(state.recent, key = { "c${it.id}" }) { FoodRow(it) { f -> picked = f } }
-                }
-                if (state.frequent.isNotEmpty()) {
-                    item { SectionLabel("Frequent (last 60 days)") }
-                    items(state.frequent, key = { "f${it.id}" }) { FoodRow(it) { f -> picked = f } }
-                }
-                item { Spacer(Modifier.height(24.dp)) }
             }
         }
     }
@@ -174,18 +177,17 @@ fun FoodSearchScreen(
 }
 
 @Composable
-private fun FoodRow(food: Food, onClick: (Food) -> Unit) {
-    ShadowCard(Modifier.fillMaxWidth(), shadow = 3.dp, contentPadding = 12.dp, onClick = { onClick(food) }) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(food.name, style = MaterialTheme.typography.titleSmall)
-                val sub = listOfNotNull(food.brand, food.servingLabel).joinToString(" Â· ")
-                Text(sub, style = MaterialTheme.typography.labelMedium, color = Ink.copy(alpha = 0.7f))
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("${FoodInput.kcal(food.kcal)} kcal", style = MaterialTheme.typography.labelMedium, color = MetricColors.Calories)
-                Text("${FoodInput.grams(food.proteinG)} g P", style = MaterialTheme.typography.labelSmall, color = MetricColors.Protein)
-            }
+private fun FoodGroup(title: String?, foods: List<Food>, onClick: (Food) -> Unit) {
+    TxListGroup(title = title) {
+        foods.forEachIndexed { i, food ->
+            TxListRow(
+                food.name,
+                onClick = { onClick(food) },
+                subtitle = listOfNotNull(food.brand, food.servingLabel).joinToString(" · "),
+                value = "${FoodInput.kcal(food.kcal)} kcal",
+                chevron = false,
+                divider = i < foods.lastIndex,
+            )
         }
     }
 }
@@ -218,9 +220,6 @@ private fun ServingsDialog(food: Food, onDismiss: () -> Unit, onLog: (Double) ->
             else "Enter a servings amount above 0.",
             style = MaterialTheme.typography.labelMedium, color = if (n != null) Ink else Coral,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TxButton("Cancel", onDismiss, Modifier.weight(1f))
-            TxButton("Log", { FoodInput.parsePositive(servings)?.let(onLog) }, Modifier.weight(1f), bg = Green, textColor = ItemsBg, enabled = n != null)
-        }
+        TxDialogButtons("Log", { FoodInput.parsePositive(servings)?.let(onLog) }, onDismiss, confirmEnabled = n != null)
     }
 }
