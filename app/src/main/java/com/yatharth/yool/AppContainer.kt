@@ -3,6 +3,7 @@ package com.yatharth.yool
 import android.app.Application
 import android.content.Context
 import com.yatharth.yool.data.FoodRepository
+import com.yatharth.yool.data.MeasurementRepository
 import com.yatharth.yool.data.TrackerRepository
 import com.yatharth.yool.data.WorkoutRepository
 import com.yatharth.yool.data.db.YoolDatabase
@@ -17,6 +18,7 @@ class AppContainer(context: Context) {
     val repository: TrackerRepository = TrackerRepository(database)
     val foodRepository: FoodRepository = FoodRepository(database)
     val workoutRepository: WorkoutRepository = WorkoutRepository(database)
+    val measurementRepository: MeasurementRepository = MeasurementRepository(database)
 
     val healthConnectManager = HealthConnectManager(context.applicationContext)
     val syncEngine = SyncEngine(healthConnectManager, repository, HealthConnectPrefs(context))

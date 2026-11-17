@@ -137,10 +137,13 @@ fun InsightsScreen(contentPadding: PaddingValues, header: @Composable () -> Unit
 
 private const val NOT_ENOUGH = "Not enough data yet"
 
-/** Title + one headline sentence by default; the supporting numbers and bars expand on tap. */
+/**
+ * Title + headline with the supporting numbers. Open by default; collapsed only when there's nothing to
+ * compare yet. The key includes [hasData] so a card opens by itself once data arrives.
+ */
 @Composable
-private fun InsightCard(title: String, headline: String, content: @Composable () -> Unit) {
-    TxCollapsible(title, summary = headline) { content() }
+private fun InsightCard(title: String, headline: String, hasData: Boolean, content: @Composable () -> Unit) {
+    TxCollapsible(title, summary = headline, initiallyExpanded = hasData, key = "$title|$hasData") { content() }
 }
 
 /** One group as a bar scaled to [max], with its average and sample size. */
@@ -171,7 +174,7 @@ private fun SleepCard(groups: List<GroupAvg>) {
     val best = usable.maxByOrNull { it.avg!! }
     val headline = if (usable.size < 2 || best == null) NOT_ENOUGH
     else "Your mood is best the day after ${best.label.lowercase()} of sleep (avg ${Fmt.one(best.avg)} of 5)."
-    InsightCard("Sleep vs next-day mood", headline) {
+    InsightCard("Sleep vs next-day mood", headline, hasData = usable.size >= 2) {
         groups.forEach { GroupRow(it, 5.0, MetricColors.Sleep) }
         Text("Mood tomorrow by last night's sleep. n = nights.", style = MaterialTheme.typography.labelSmall)
     }
@@ -187,7 +190,7 @@ private fun BingeCard(c: BingeComparison) {
         !enough -> NOT_ENOUGH + " (${c.bingeDays} binge days, ${c.otherDays} other days)"
         else -> "${c.bingeDays} binge days vs ${c.otherDays} other days."
     }
-    InsightCard("Binge days vs others", headline) {
+    InsightCard("Binge days vs others", headline, hasData = enough) {
         if (enough) {
             ComparePair("Previous-day calories", c.prevCalories, MetricColors.Calories) { Fmt.int(it) }
             ComparePair("Previous-day sleep (h)", c.prevSleep, MetricColors.Sleep) { Fmt.one(it) }
@@ -225,7 +228,7 @@ private fun StepsCard(p: Pair<GroupAvg, GroupAvg>, hasTarget: Boolean) {
             }
         }
     }
-    InsightCard("Steps vs mood", headline) {
+    InsightCard("Steps vs mood", headline, hasData = hasTarget && pair(p.first, p.second)) {
         if (hasTarget) {
             GroupRow(p.first, 5.0, MetricColors.Steps)
             GroupRow(p.second, 5.0, MetricColors.Steps.copy(alpha = 0.5f))
@@ -240,7 +243,7 @@ private fun AdherenceCard(rows: List<Adherence>) {
     val usable = rows.filter { it.n >= Insights.MIN_N && it.percent != null }
     val headline = if (usable.isEmpty()) NOT_ENOUGH
     else usable.maxByOrNull { it.percent!! }!!.let { "Best adherence: ${it.label.lowercase()} target met on ${it.percent!!.roundToInt()}% of days." }
-    InsightCard("Target adherence", headline) {
+    InsightCard("Target adherence", headline, hasData = usable.isNotEmpty()) {
         rows.forEach { r ->
             val ok = r.n >= Insights.MIN_N && r.percent != null
             HBarRow(
@@ -265,7 +268,7 @@ private fun WeightCard(w: WeightTrend) {
         TrendVerdict.OFF_TRACK -> "Off track: current pace will not reach your goal on time."
         TrendVerdict.UNKNOWN -> if (w.goalKg == null && w.n >= Insights.MIN_N) "Set a goal weight in Settings to get a verdict." else NOT_ENOUGH
     }
-    InsightCard("Weight trend", headline) {
+    InsightCard("Weight trend", headline, hasData = w.n >= Insights.MIN_N) {
         if (verdict != TrendVerdict.UNKNOWN || w.n >= Insights.MIN_N) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatValue("Actual", w.actualKgPerWeek?.let(::signedKg) ?: "—", Modifier.weight(1f), unit = "kg/wk",
@@ -301,7 +304,7 @@ private fun WorkoutCard(r: WorkoutVsRest) {
             }
         }
     }
-    InsightCard("Workout days vs rest days", headline) {
+    InsightCard("Workout days vs rest days", headline, hasData = pair(r.workoutMood, r.restMood)) {
         SubLabel("Average mood")
         GroupRow(r.workoutMood, 5.0, MetricColors.Workout)
         GroupRow(r.restMood, 5.0, MetricColors.Workout.copy(alpha = 0.5f))

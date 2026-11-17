@@ -86,3 +86,23 @@ enum class SetType(val short: String, val label: String) {
 }
 
 enum class WorkoutSource { USER, STRONG_IMPORT }
+
+/** Body measurements (Strong's list). [max] rejects obvious typos. Order = display order. */
+enum class MeasurementPart(val label: String, val unit: String, val group: String, val max: Double = 300.0) {
+    BODY_FAT("Body fat", "%", "Body", 70.0),
+    NECK("Neck", "cm", "Upper body"),
+    SHOULDERS("Shoulders", "cm", "Upper body"),
+    CHEST("Chest", "cm", "Upper body"),
+    LEFT_BICEP("Left bicep", "cm", "Arms"),
+    RIGHT_BICEP("Right bicep", "cm", "Arms"),
+    LEFT_FOREARM("Left forearm", "cm", "Arms"),
+    RIGHT_FOREARM("Right forearm", "cm", "Arms"),
+    UPPER_ABS("Upper abs", "cm", "Core"),
+    WAIST("Waist", "cm", "Core"),
+    LOWER_ABS("Lower abs", "cm", "Core"),
+    HIPS("Hips", "cm", "Core"),
+    LEFT_THIGH("Left thigh", "cm", "Legs"),
+    RIGHT_THIGH("Right thigh", "cm", "Legs"),
+    LEFT_CALF("Left calf", "cm", "Legs"),
+    RIGHT_CALF("Right calf", "cm", "Legs"),
+}
