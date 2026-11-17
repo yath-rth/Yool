@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,6 +48,7 @@ import com.yatharth.yool.data.model.DefaultBingeTriggers
 import com.yatharth.yool.data.model.Metric
 import com.yatharth.yool.data.model.TargetMetric
 import com.yatharth.yool.domain.TargetCheck
+import com.yatharth.yool.sync.SyncStatus
 import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
@@ -78,6 +80,14 @@ fun DayScreen(
     val vm: DayViewModel = viewModel(key = "day-$date", factory = viewModelFactory { initializer { DayViewModel(repo, date) } })
     val state by vm.state.collectAsStateWithLifecycle()
 
+    val syncEngine = LocalContext.current.appContainer.syncEngine
+    val syncStatus by syncEngine.status.collectAsStateWithLifecycle()
+
+    PullToRefreshBox(
+        isRefreshing = syncStatus == SyncStatus.Running,
+        onRefresh = syncEngine::launchRecentSync,
+        modifier = Modifier.fillMaxSize(),
+    ) {
     Column(
         Modifier
             .fillMaxSize()
@@ -98,6 +108,7 @@ fun DayScreen(
         ActivityCard(state, k, vm::update)
         WorkoutCard(state, vm::update)
         Spacer(Modifier.height(24.dp))
+    }
     }
 }
 
