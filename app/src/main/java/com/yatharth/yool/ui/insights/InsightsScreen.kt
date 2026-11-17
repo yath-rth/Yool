@@ -94,7 +94,7 @@ class InsightsViewModel(repo: TrackerRepository) : ViewModel() {
 }
 
 @Composable
-fun InsightsScreen(contentPadding: PaddingValues) {
+fun InsightsScreen(contentPadding: PaddingValues, header: @Composable () -> Unit = {}) {
     val repo = LocalContext.current.appContainer.repository
     val vm: InsightsViewModel = viewModel(factory = viewModelFactory { initializer { InsightsViewModel(repo) } })
     val selection by vm.selection.collectAsStateWithLifecycle()
@@ -112,6 +112,7 @@ fun InsightsScreen(contentPadding: PaddingValues) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenTitle("Insights", subtitle = "Patterns in your own data")
+        header()
         RangeSelector(selection, ui?.let { it.from to it.to }, onChange = { vm.selection.value = it })
         val u = ui
         if (u == null) {

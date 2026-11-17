@@ -18,6 +18,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +44,8 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
 import com.yatharth.yool.ui.components.TxChip
+import com.yatharth.yool.ui.components.TxSegmented
+import com.yatharth.yool.ui.insights.InsightsScreen
 import com.yatharth.yool.ui.day.moodColor
 import com.yatharth.yool.ui.theme.Amber
 import com.yatharth.yool.ui.theme.Coral
@@ -64,8 +69,22 @@ private fun GraphMetric.color(): Color = when (this) {
     GraphMetric.LIFTS -> MetricColors.Weight
 }
 
+private enum class GraphsTab(val label: String) { GRAPHS("Graphs"), INSIGHTS("Insights") }
+
 @Composable
 fun GraphsScreen(contentPadding: PaddingValues) {
+    var tab by rememberSaveable { mutableStateOf(GraphsTab.GRAPHS) }
+    val switch: @Composable () -> Unit = {
+        TxSegmented(GraphsTab.entries, tab, onSelect = { tab = it }, label = { it.label.uppercase() })
+    }
+    when (tab) {
+        GraphsTab.GRAPHS -> GraphsContent(contentPadding, switch)
+        GraphsTab.INSIGHTS -> InsightsScreen(contentPadding, switch)
+    }
+}
+
+@Composable
+private fun GraphsContent(contentPadding: PaddingValues, header: @Composable () -> Unit) {
     val repo = LocalContext.current.appContainer.repository
     val vm: GraphsViewModel = viewModel(factory = viewModelFactory { initializer { GraphsViewModel(repo) } })
     val selection by vm.selection.collectAsStateWithLifecycle()
@@ -87,6 +106,7 @@ fun GraphsScreen(contentPadding: PaddingValues) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenTitle("Graphs", subtitle = "How things are trending")
+        header()
         RangeSelector(selection, data?.let { it.from to it.to }, onChange = { vm.selection.value = it })
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GraphMetric.entries.forEach { m ->

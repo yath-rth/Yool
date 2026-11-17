@@ -158,4 +158,10 @@ class WorkoutMathTest {
         assertEquals("50", WorkoutMath.kg(50.0))
         assertEquals("Morning Workout", WorkoutMath.defaultName(7))
     }
+
+    @Test fun exerciseLinesCountCompletedSetsOnly() {
+        val w = workout(listOf(set(0, 60.0, 5), set(1, 60.0, 5), set(2, 60.0, 5, done = false)))
+        assertEquals(listOf("2 × ${bench.name}"), WorkoutMath.exerciseLines(w))
+        assertEquals(emptyList<String>(), WorkoutMath.exerciseLines(workout(listOf(set(0, 60.0, 5, done = false)))))
+    }
 }
