@@ -86,10 +86,15 @@ interface TargetDao {
     entities = [
         DailyEntry::class, ImportedValue::class, LiftBestSet::class, TargetEntry::class,
         Food::class, FoodLogEntry::class, SavedMeal::class, SavedMealItem::class,
+        Exercise::class, TemplateFolder::class, WorkoutTemplate::class, TemplateExercise::class, TemplateSet::class,
+        Workout::class, WorkoutExercise::class, WorkoutSet::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)], // v2: food library, food log, saved meals
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2), // v2: food library, food log, saved meals
+        AutoMigration(from = 2, to = 3), // v3: exercises, templates, workout log
+    ],
 )
 @TypeConverters(Converters::class)
 abstract class YoolDatabase : RoomDatabase() {
@@ -98,6 +103,7 @@ abstract class YoolDatabase : RoomDatabase() {
     abstract fun liftDao(): LiftDao
     abstract fun targetDao(): TargetDao
     abstract fun foodDao(): FoodDao
+    abstract fun workoutDao(): WorkoutDao
 
     companion object {
         fun build(context: Context): YoolDatabase =
