@@ -93,19 +93,3 @@ fun ExercisePickerDialog(
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) { StubScreen(title, PaddingValues(0.dp), onDismiss) }
 }
-
-/**
- * The active workout (workoutId null) or a finished workout being edited (no timers, "Save" instead of
- * "Finish").
- */
-@Composable
-fun ActiveWorkoutScreen(workoutId: Long?, contentPadding: PaddingValues, onClose: () -> Unit, onOpenExercise: (Long) -> Unit) =
-    StubScreen("Workout", contentPadding, onClose)
-
-/** Banner above the bottom bar while a workout is active; tap to return to it. Renders nothing otherwise. */
-@Composable
-fun ActiveWorkoutBanner(onOpen: () -> Unit) {}
-
-/** Settings › Workout section (rest defaults, timer sound/vibrate, keep screen on, bar weight, plates). */
-@Composable
-fun WorkoutSettingsSection() {}
