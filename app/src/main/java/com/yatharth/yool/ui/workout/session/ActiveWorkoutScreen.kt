@@ -213,14 +213,14 @@ private fun Header(vm: ActiveWorkoutViewModel, w: WorkoutFull, editing: Boolean,
     ShadowCard {
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TxTextField(name, { name = it }, "Workout", modifier = Modifier.weight(1f), maxLength = 60)
-            TxButton(if (editing) "Save" else "Finish", onClick = onFinish, bg = Green, textColor = androidx.compose.ui.graphics.Color.White)
+            TxButton(if (editing) "Save" else "Finish", onClick = onFinish, bg = Green, textColor = androidx.compose.ui.graphics.Color.White, fill = false)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (editing) {
                 val end = w.workout.endedAt
                 val ms = (end ?: System.currentTimeMillis()) - w.workout.startedAt
                 StatValue("Duration", WorkoutMath.formatDuration(ms), Modifier.weight(1f))
-                TxButton("Edit time", onClick = onEditTimes)
+                TxButton("Edit time", onClick = onEditTimes, fill = false)
             } else {
                 val now by rememberNow()
                 StatValue("Elapsed", SessionMath.elapsedClock(now - w.workout.startedAt), Modifier.weight(1f), big = true)
@@ -239,9 +239,9 @@ private fun RestBar(label: String, remaining: (Long) -> Int, progress: (Long) ->
                 Text("REST · $label".uppercase(), style = MaterialTheme.typography.labelSmall, maxLines = 1)
                 Text(WorkoutMath.formatClock(remaining(now)), style = MaterialTheme.typography.titleMedium)
             }
-            TxButton("−15", { RestTimer.adjust(ctx, -15) })
-            TxButton("+15", { RestTimer.adjust(ctx, 15) })
-            TxButton("Skip", { RestTimer.stop(ctx) }, bg = Coral, textColor = androidx.compose.ui.graphics.Color.White)
+            TxButton("−15", { RestTimer.adjust(ctx, -15) }, fill = false)
+            TxButton("+15", { RestTimer.adjust(ctx, 15) }, fill = false)
+            TxButton("Skip", { RestTimer.stop(ctx) }, bg = Coral, textColor = androidx.compose.ui.graphics.Color.White, fill = false)
         }
         TxProgress(progress(now))
     }

@@ -128,10 +128,11 @@ fun WorkoutHomeScreen(
             }
         }
         item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                SectionLabel("Templates", Modifier.weight(1f))
-                TxButton("+ Template", { onEditTemplate(0) }, Modifier.padding(end = 8.dp))
-                TxButton("+ Folder", { dialog = HomeDialog.NewFolder })
+            // TxButton fills its width, so the label gets its own line and the buttons share a row.
+            SectionLabel("Templates")
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TxButton("+ Template", { onEditTemplate(0) }, Modifier.weight(1f))
+                TxButton("+ Folder", { dialog = HomeDialog.NewFolder }, Modifier.weight(1f))
             }
         }
         if (templates.isEmpty() && folders.isEmpty()) {

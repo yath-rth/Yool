@@ -98,6 +98,8 @@ fun TxButton(
     textColor: Color = Ink,
     icon: ImageVector? = null,
     enabled: Boolean = true,
+    /** false = size to the label. Needed inside a Row next to weighted siblings, which a full-width button would starve. */
+    fill: Boolean = true,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -105,8 +107,7 @@ fun TxButton(
     Box(modifier.padding(end = 3.dp, bottom = 3.dp)) {
         Box(Modifier.matchParentSize().offset(3.dp, 3.dp).background(Ink, CardShape))
         Row(
-            Modifier
-                .fillMaxWidth()
+            (if (fill) Modifier.fillMaxWidth() else Modifier)
                 .offset(press, press)
                 .clip(CardShape)
                 .background(if (enabled) bg else SecondaryBg, CardShape)
