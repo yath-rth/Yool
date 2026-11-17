@@ -33,67 +33,6 @@ internal fun StubScreen(title: String, contentPadding: PaddingValues, onBack: ((
     }
 }
 
-/** Workout tab home: start empty, templates (with folders), recent history. */
-@Composable
-fun WorkoutHomeScreen(
-    contentPadding: PaddingValues,
-    /** Called after a workout was started (or an active one exists) — opens the active workout. */
-    onOpenActive: () -> Unit,
-    onEditTemplate: (templateId: Long) -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenWorkout: (workoutId: Long) -> Unit,
-    onOpenExercises: () -> Unit,
-) = StubScreen("Workout", contentPadding)
-
-/** Finished workouts, newest first. */
-@Composable
-fun WorkoutHistoryScreen(contentPadding: PaddingValues, onBack: () -> Unit, onOpenWorkout: (Long) -> Unit) =
-    StubScreen("History", contentPadding, onBack)
-
-/** One finished workout: sets, volume, PRs; edit / delete / save as template / start again. */
-@Composable
-fun WorkoutDetailScreen(
-    workoutId: Long,
-    contentPadding: PaddingValues,
-    onBack: () -> Unit,
-    onEdit: (workoutId: Long) -> Unit,
-    onOpenActive: () -> Unit,
-    onOpenExercise: (exerciseId: Long) -> Unit,
-) = StubScreen("Workout", contentPadding, onBack)
-
-/** Create (templateId 0) or edit a template. */
-@Composable
-fun TemplateEditorScreen(templateId: Long, contentPadding: PaddingValues, onDone: () -> Unit) =
-    StubScreen("Template", contentPadding, onDone)
-
-@Composable
-fun ExerciseLibraryScreen(contentPadding: PaddingValues, onBack: () -> Unit, onOpenExercise: (Long) -> Unit, onNewExercise: () -> Unit) =
-    StubScreen("Exercises", contentPadding, onBack)
-
-/** History / Records / Charts for one exercise. */
-@Composable
-fun ExerciseDetailScreen(exerciseId: Long, contentPadding: PaddingValues, onBack: () -> Unit, onEdit: (Long) -> Unit, onOpenWorkout: (Long) -> Unit) =
-    StubScreen("Exercise", contentPadding, onBack)
-
-/** Create (exerciseId 0) or edit an exercise. */
-@Composable
-fun ExerciseEditorScreen(exerciseId: Long, contentPadding: PaddingValues, onDone: () -> Unit) =
-    StubScreen("Exercise", contentPadding, onDone)
-
-/**
- * Full-screen dialog to pick exercises (search, body-part filter, create new inline).
- * [multiple] allows picking several (adding to a workout/template); otherwise one (replace).
- */
-@Composable
-fun ExercisePickerDialog(
-    title: String,
-    multiple: Boolean,
-    onDismiss: () -> Unit,
-    onPicked: (exerciseIds: List<Long>) -> Unit,
-) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) { StubScreen(title, PaddingValues(0.dp), onDismiss) }
-}
-
 /**
  * The active workout (workoutId null) or a finished workout being edited (no timers, "Save" instead of
  * "Finish").
