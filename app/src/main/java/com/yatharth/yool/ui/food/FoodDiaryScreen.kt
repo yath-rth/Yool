@@ -20,7 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,6 +58,7 @@ import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxProgress
+import com.yatharth.yool.ui.components.TxChip
 import com.yatharth.yool.ui.components.TxSegmented
 import com.yatharth.yool.ui.components.TxTextField
 import com.yatharth.yool.ui.theme.Coral
@@ -136,9 +138,9 @@ fun FoodDiaryScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back", Modifier.clickable(onClick = onBack).padding(end = 12.dp))
             ScreenTitle("Food", Modifier.weight(1f), subtitle = Fmt.day(date))
-            NavArrow(Icons.AutoMirrored.Outlined.ArrowBack, "Previous day") { onNavigateDay(date.minusDays(1)) }
+            NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowLeft, "Previous day") { onNavigateDay(date.minusDays(1)) }
             Spacer(Modifier.size(8.dp))
-            if (date.isBefore(LocalDate.now())) NavArrow(Icons.AutoMirrored.Outlined.ArrowForward, "Next day") { onNavigateDay(date.plusDays(1)) }
+            if (date.isBefore(LocalDate.now())) NavArrow(Icons.AutoMirrored.Outlined.KeyboardArrowRight, "Next day") { onNavigateDay(date.plusDays(1)) }
         }
 
         TotalsCard(state, date)
@@ -334,7 +336,12 @@ private fun EntryDialog(entry: FoodLogEntry, vm: FoodDiaryViewModel, onDismiss: 
             }, "Grams", Modifier.fillMaxWidth(), unit = "g", numeric = true)
         }
         SectionLabel("Meal")
-        TxSegmented(Meal.entries, meal, { meal = it }, Modifier.fillMaxWidth(), label = { it.label.take(5) })
+        // Full meal names don't fit a 4-way segmented control, so use a 2×2 grid of chips.
+        Meal.entries.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { m -> TxChip(m.label, m == meal, { meal = m }, Modifier.weight(1f)) }
+            }
+        }
         TxButton("Save", {
             parsed?.let { p -> if (p != entry.servings) vm.setServings(entry.id, p) }
             if (meal != entry.meal) vm.move(entry.id, meal)

@@ -32,8 +32,16 @@ object FoodInput {
         return num(grams / g, 3)
     }
 
-    /** "1.5 × 100 g" */
-    fun servingsLabel(servings: Double, servingLabel: String): String = "${num(servings)} × $servingLabel"
+    private val measured = Regex("""^(\d+(?:\.\d+)?)\s*(g|ml)$""", RegexOption.IGNORE_CASE)
+    private val single = Regex("""^1\s+(.+)$""")
+
+    /** Human amount: "150 g" for weight/volume servings, "2 cup" for "1 cup" servings, else "1.5 × big bowl". */
+    fun servingsLabel(servings: Double, servingLabel: String): String {
+        val label = servingLabel.trim()
+        measured.matchEntire(label)?.let { m -> return "${num(servings * m.groupValues[1].toDouble(), 1)} ${m.groupValues[2]}" }
+        single.matchEntire(label)?.let { m -> return "${num(servings)} ${m.groupValues[1]}" }
+        return "${num(servings)} × $label"
+    }
 
     fun kcal(v: Double): String = Fmt.int(Math.round(v))
     fun grams(v: Double): String = num(v, 1)
