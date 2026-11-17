@@ -53,6 +53,7 @@ import com.yatharth.yool.ui.Fmt
 import com.yatharth.yool.ui.components.SectionLabel
 import com.yatharth.yool.ui.components.ShadowCard
 import com.yatharth.yool.ui.components.StatValue
+import com.yatharth.yool.ui.components.TxButton
 import com.yatharth.yool.ui.components.TxChip
 import com.yatharth.yool.ui.components.TxProgress
 import com.yatharth.yool.ui.components.TxSwitch
@@ -106,7 +107,7 @@ fun DayScreen(
         StreakAndMoodRow(state)
         WeightCard(state, k, vm::update)
         CheckInCard(state, k, vm::update)
-        NutritionCard(state, k, vm::update)
+        NutritionCard(state, k, vm::update) { onOpenFood(date) }
         ActivityCard(state, k, vm::update)
         WorkoutCard(state, vm::update)
         Spacer(Modifier.height(24.dp))
@@ -266,7 +267,7 @@ fun moodColor(n: Int): Color = when (n) {
 // ── Nutrition ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun NutritionCard(state: DayUiState, key: String, update: ((DailyEntry) -> DailyEntry) -> Unit) {
+private fun NutritionCard(state: DayUiState, key: String, update: ((DailyEntry) -> DailyEntry) -> Unit, onLogFood: () -> Unit) {
     val d = state.day
     val calTarget = state.targets.valueOn(TargetMetric.CALORIES, state.date)
     val proTarget = state.targets.valueOn(TargetMetric.PROTEIN, state.date)
@@ -286,6 +287,7 @@ private fun NutritionCard(state: DayUiState, key: String, update: ((DailyEntry) 
             overrideText = state.entry?.proteinG?.let { Fmt.one(it) } ?: "", key = key + "pro", numericUnit = "g",
             onOverride = { v -> update { it.copy(proteinG = Fmt.parseDouble(v)) } },
         )
+        TxButton("Log food", onClick = onLogFood, modifier = Modifier.fillMaxWidth())
     }
 }
 
