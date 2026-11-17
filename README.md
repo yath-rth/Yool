@@ -186,9 +186,13 @@ Health Connect record types read: `StepsRecord`, `SleepSessionRecord`, `Nutritio
 
 ### Build and install
 
-1. Clone the repository and open the project folder in Android Studio.
-2. Let Gradle sync.
-3. Run the `app` configuration on a device or emulator, or use the command line:
+```bash
+git clone https://github.com/yath-rth/Yool.git
+cd Yool
+```
+
+1. Open the project folder in Android Studio and let Gradle sync.
+2. Run the `app` configuration on a device or emulator, or use the command line:
 
 ```bash
 ./gradlew installDebug
