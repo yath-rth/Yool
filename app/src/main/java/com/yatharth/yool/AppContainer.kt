@@ -18,6 +18,7 @@ class YoolApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        com.yatharth.yool.reminders.ReminderScheduler.rescheduleAllAsync(this)
     }
 }
 
